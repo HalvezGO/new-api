@@ -507,7 +507,14 @@ func checkAndPersistChannelUpstreamModelUpdates(
 
 	if allowAutoApply && settings.UpstreamModelUpdateAutoSyncEnabled && len(pendingAddModels) > 0 {
 		originModels := normalizeModelNames(channel.GetModels())
-		mergedModels := mergeModelNames(originModels, pendingAddModels)
+		// Re-apply prefix to detected models so they can be matched by clients
+		addedWithPrefix := lo.Map(pendingAddModels, func(m string, _ int) string {
+			if settings.ModelPrefix != "" && !strings.HasPrefix(m, settings.ModelPrefix) {
+				return settings.ModelPrefix + m
+			}
+			return m
+		})
+		mergedModels := mergeModelNames(originModels, addedWithPrefix)
 		if len(mergedModels) > len(originModels) {
 			channel.Models = strings.Join(mergedModels, ",")
 			autoAdded = len(mergedModels) - len(originModels)
