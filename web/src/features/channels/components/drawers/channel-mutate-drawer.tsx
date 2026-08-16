@@ -3584,6 +3584,81 @@ export function ChannelMutateDrawer({
                           <div className='border-border/60 rounded-lg border p-4'>
                             <FormField
                               control={form.control}
+                              name='model_prefix'
+                              render={({ field }) => (
+                                <FormItem className='space-y-3'>
+                                  <div className='space-y-1'>
+                                    <div className='flex items-center gap-2'>
+                                      <FormLabel>{t('Model Prefix')}</FormLabel>
+                                      <Tooltip>
+                                        <TooltipTrigger
+                                          render={
+                                            <Button
+                                              type='button'
+                                              variant='ghost'
+                                              size='icon-sm'
+                                              className='text-muted-foreground hover:text-foreground size-auto p-0'
+                                              aria-label={t(
+                                                'How model prefix works'
+                                              )}
+                                            />
+                                          }
+                                        >
+                                          <HelpCircle
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                          />
+                                        </TooltipTrigger>
+                                        <TooltipContent
+                                          side='top'
+                                          align='start'
+                                          className='max-w-xs space-y-2 text-left'
+                                        >
+                                          <p className='text-xs font-semibold tracking-wide uppercase'>
+                                            {t('Request flow')}
+                                          </p>
+                                          <div className='space-y-1 font-mono text-xs'>
+                                            <div className='flex items-center gap-1'>
+                                              <span>{field.value || 'prefix/'}</span>
+                                              <ArrowRight
+                                                className='h-3.5 w-3.5 opacity-70'
+                                                aria-hidden='true'
+                                              />
+                                              <span>upstream model</span>
+                                            </div>
+                                          </div>
+                                          <p className='text-[11px] leading-relaxed opacity-80'>
+                                            {t(
+                                              'Prefix to strip from model names before forwarding to upstream. Leave empty to disable.'
+                                            )}
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </div>
+                                    <FormDescription>
+                                      {t(FIELD_DESCRIPTIONS.MODEL_PREFIX)}
+                                    </FormDescription>
+                                  </div>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      value={field.value || ''}
+                                      onChange={(e) =>
+                                        field.onChange(e.target.value || null)
+                                      }
+                                      placeholder='e.g., byok-nvidia-nim/'
+                                      disabled={isSubmitting}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className='border-border/60 rounded-lg border p-4'>
+                            <FormField
+                              control={form.control}
                               name='group'
                               render={({ field }) => (
                                 <FormItem className='space-y-3'>

@@ -85,6 +85,7 @@ type ChannelOtherSettings struct {
 	UpstreamModelUpdateLastRemovedModels  []string              `json:"upstream_model_update_last_removed_models,omitempty"`  // 上次检测到的可删除模型
 	UpstreamModelUpdateIgnoredModels      []string              `json:"upstream_model_update_ignored_models,omitempty"`       // 手动忽略的模型
 	AdvancedCustom                        *AdvancedCustomConfig `json:"advanced_custom,omitempty"`
+	ModelPrefix                           string                `json:"model_prefix,omitempty"` // Model prefix to strip before upstream, e.g. "byok-nvidia-nim/"
 }
 
 func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {

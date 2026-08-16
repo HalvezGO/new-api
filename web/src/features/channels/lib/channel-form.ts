@@ -282,6 +282,7 @@ export const channelFormSchema = z
     upstream_model_update_check_enabled: z.boolean().optional(),
     upstream_model_update_auto_sync_enabled: z.boolean().optional(),
     upstream_model_update_ignored_models: z.string().optional(),
+    model_prefix: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (
@@ -453,6 +454,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   upstream_model_update_check_enabled: false,
   upstream_model_update_auto_sync_enabled: false,
   upstream_model_update_ignored_models: '',
+  model_prefix: '',
   advanced_custom: '',
 }
 
@@ -518,6 +520,7 @@ export function transformChannelToFormDefaults(
   let upstreamModelUpdateAutoSyncEnabled = false
   let upstreamModelUpdateIgnoredModels = ''
   let advancedCustom = ''
+  let modelPrefix = ''
 
   if (channel.settings) {
     try {
@@ -543,6 +546,7 @@ export function transformChannelToFormDefaults(
       )
         ? parsed.upstream_model_update_ignored_models.join(',')
         : ''
+      modelPrefix = parsed.model_prefix || ''
       if (parsed.advanced_custom) {
         advancedCustom = stringifyAdvancedCustomConfig(parsed.advanced_custom)
       }
@@ -597,6 +601,7 @@ export function transformChannelToFormDefaults(
     upstream_model_update_auto_sync_enabled: upstreamModelUpdateAutoSyncEnabled,
     upstream_model_update_ignored_models: upstreamModelUpdateIgnoredModels,
     advanced_custom: advancedCustom,
+    model_prefix: modelPrefix,
   }
 }
 
@@ -761,6 +766,12 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
     }
   } else if ('advanced_custom' in settingsObj) {
     delete settingsObj.advanced_custom
+  }
+
+  if (formData.model_prefix) {
+    settingsObj.model_prefix = formData.model_prefix
+  } else if ('model_prefix' in settingsObj) {
+    delete settingsObj.model_prefix
   }
 
   return JSON.stringify(settingsObj)

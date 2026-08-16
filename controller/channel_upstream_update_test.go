@@ -505,10 +505,39 @@ func TestCollectPendingUpstreamModelChangesFromModels_WithModelMapping(t *testin
 		map[string]string{
 			"alias-model": "mapped-target",
 		},
+		"",
 	)
 
 	require.Equal(t, []string{}, pendingAddModels)
 	require.Equal(t, []string{"stale-model"}, pendingRemoveModels)
+}
+
+func TestCollectPendingUpstreamModelChangesFromModels_WithModelPrefix(t *testing.T) {
+	pendingAddModels, pendingRemoveModels := collectPendingUpstreamModelChangesFromModels(
+		[]string{"byok-nvidia-nim/openai/gpt-4o", "byok-nvidia-nim/openai/gpt-3.5-turbo", "stale-model"},
+		[]string{"openai/gpt-4o", "openai/gpt-4.1"},
+		[]string{},
+		nil,
+		"byok-nvidia-nim/",
+	)
+
+	require.Equal(t, []string{"openai/gpt-4.1"}, pendingAddModels)
+	require.Equal(t, []string{"openai/gpt-3.5-turbo", "stale-model"}, pendingRemoveModels)
+}
+
+func TestCollectPendingUpstreamModelChangesFromModels_WithModelPrefixAndMapping(t *testing.T) {
+	pendingAddModels, pendingRemoveModels := collectPendingUpstreamModelChangesFromModels(
+		[]string{"byok/openai/gpt-4o"},
+		[]string{"openai/gpt-4o", "openai/gpt-4.1"},
+		[]string{},
+		map[string]string{
+			"byok/openai/gpt-4o": "openai/gpt-4",
+		},
+		"byok/",
+	)
+
+	require.Equal(t, []string{"openai/gpt-4.1"}, pendingAddModels)
+	require.Equal(t, []string{}, pendingRemoveModels)
 }
 
 func TestCollectPendingUpstreamModelChangesFromModels_WithIgnoredRegexPatterns(t *testing.T) {
@@ -517,6 +546,7 @@ func TestCollectPendingUpstreamModelChangesFromModels_WithIgnoredRegexPatterns(t
 		[]string{"gpt-4o", "claude-3-5-sonnet", "sora-video", "gpt-4.1"},
 		[]string{"regex:^sora-.*$", "gpt-4.1"},
 		nil,
+		"",
 	)
 
 	require.Equal(t, []string{"claude-3-5-sonnet"}, pendingAddModels)

@@ -181,7 +181,16 @@ func collectPendingUpstreamModelChangesFromModels(
 	upstreamModels []string,
 	ignoredModels []string,
 	modelMapping map[string]string,
+	modelPrefix string,
 ) (pendingAddModels []string, pendingRemoveModels []string) {
+	// Strip prefix from local models for upstream comparison
+	localModels = lo.Map(localModels, func(m string, _ int) string {
+		if modelPrefix != "" && strings.HasPrefix(m, modelPrefix) {
+			return strings.TrimPrefix(m, modelPrefix)
+		}
+		return m
+	})
+
 	localSet := make(map[string]struct{})
 	localModels = normalizeModelNames(localModels)
 	upstreamModels = normalizeModelNames(upstreamModels)
@@ -247,6 +256,7 @@ func collectPendingUpstreamModelChanges(channel *model.Channel, settings dto.Cha
 		upstreamModels,
 		settings.UpstreamModelUpdateIgnoredModels,
 		normalizeChannelModelMapping(channel),
+		settings.ModelPrefix,
 	)
 	return pendingAddModels, pendingRemoveModels, nil
 }
