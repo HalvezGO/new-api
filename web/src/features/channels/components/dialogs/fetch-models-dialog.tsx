@@ -101,11 +101,15 @@ export function FetchModelsDialog({
   const existingModels = useMemo(() => {
     const raw =
       existingModelsOverride ?? parseModelsString(activeChannel?.models || '')
-    const prefix = (activeChannel as Record<string, unknown> | undefined)?.model_prefix as
-      | string
-      | undefined
+    let prefix = ''
+    try {
+      const s = JSON.parse(activeChannel?.settings || '{}')
+      prefix = String(s.model_prefix || '')
+    } catch {
+      // ignore
+    }
     return prefix ? raw.map((m) => stripModelPrefix(m, prefix)) : raw
-  }, [existingModelsOverride, activeChannel?.models, (activeChannel as Record<string, unknown> | undefined)?.model_prefix])
+  }, [existingModelsOverride, activeChannel?.models, activeChannel?.settings])
 
   // Categorize models with redirect models
   const modelCategories = useMemo(
@@ -190,10 +194,15 @@ export function FetchModelsDialog({
     if (!activeChannel) return
     setIsSaving(true)
     try {
-      const prefix = (activeChannel as Record<string, unknown> | undefined)
-        .model_prefix as string | undefined
-      const modelsToSave = prefix
-        ? selectedModels.map((m) => addModelPrefix(m, prefix)).join(',')
+      let savePrefix = ''
+      try {
+        const s = JSON.parse(activeChannel.settings || '{}')
+        savePrefix = String(s.model_prefix || '')
+      } catch {
+        // ignore
+      }
+      const modelsToSave = savePrefix
+        ? selectedModels.map((m) => addModelPrefix(m, savePrefix)).join(',')
         : selectedModels.join(',')
       const response = await updateChannel(activeChannel.id, {
         models: modelsToSave,
