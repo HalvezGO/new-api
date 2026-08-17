@@ -46,6 +46,8 @@ import {
   channelsQueryKeys,
   normalizeModelName,
   parseModelsString,
+  stripModelPrefix,
+  addModelPrefix,
 } from '../../lib'
 import { useChannels } from '../channels-provider'
 
@@ -94,12 +96,16 @@ export function FetchModelsDialog({
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [searchKeyword, setSearchKeyword] = useState('')
 
-  // Parse existing models
-  const existingModels = useMemo(
-    () =>
-      existingModelsOverride ?? parseModelsString(activeChannel?.models || ''),
-    [existingModelsOverride, activeChannel?.models]
-  )
+  // Parse existing models; strip channel model prefix for display so the
+  // comparison against upstream (unprefixed) model IDs is correct.
+  const existingModels = useMemo(() => {
+    const raw =
+      existingModelsOverride ?? parseModelsString(activeChannel?.models || '')
+    const prefix = (activeChannel as Record<string, unknown> | undefined)?.model_prefix as
+      | string
+      | undefined
+    return prefix ? raw.map((m) => stripModelPrefix(m, prefix)) : raw
+  }, [existingModelsOverride, activeChannel?.models, (activeChannel as Record<string, unknown> | undefined)?.model_prefix])
 
   // Categorize models with redirect models
   const modelCategories = useMemo(
@@ -184,9 +190,13 @@ export function FetchModelsDialog({
     if (!activeChannel) return
     setIsSaving(true)
     try {
-      const modelsString = selectedModels.join(',')
+      const prefix = (activeChannel as Record<string, unknown> | undefined)
+        .model_prefix as string | undefined
+      const modelsToSave = prefix
+        ? selectedModels.map((m) => addModelPrefix(m, prefix)).join(',')
+        : selectedModels.join(',')
       const response = await updateChannel(activeChannel.id, {
-        models: modelsString,
+        models: modelsToSave,
       })
       if (response.success) {
         toast.success(t('Models updated successfully'))
