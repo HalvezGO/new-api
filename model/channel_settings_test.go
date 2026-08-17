@@ -41,6 +41,51 @@ func TestChannelValidateSettingsRejectsInvalidHTTPTransport(t *testing.T) {
 	}
 }
 
+func TestNormalizeModelsWithPrefix(t *testing.T) {
+	tests := []struct {
+		name      string
+		models    string
+		prefix    string
+		expected  string
+	}{
+		{
+			name:     "no prefix leaves models unchanged",
+			models:   "gpt-4o,claude-3-5-sonnet",
+			prefix:   "",
+			expected: "gpt-4o,claude-3-5-sonnet",
+		},
+		{
+			name:     "prefix applied to unprefixed models",
+			models:   "openai/gpt-4o,anthropic/claude-3-5-sonnet",
+			prefix:   "byok-nvidia-nim/",
+			expected: "byok-nvidia-nim/openai/gpt-4o,byok-nvidia-nim/anthropic/claude-3-5-sonnet",
+		},
+		{
+			name:     "already prefixed models stay unchanged",
+			models:   "byok/openai/gpt-4o,byok/openai/gpt-4.1",
+			prefix:   "byok/",
+			expected: "byok/openai/gpt-4o,byok/openai/gpt-4.1",
+		},
+		{
+			name:     "mixed prefixed and unprefixed normalized",
+			models:   "byok/openai/gpt-4o,deepseek-ai/deepseek-v3,  ",
+			prefix:   "byok/",
+			expected: "byok/openai/gpt-4o,byok/deepseek-ai/deepseek-v3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			channel := &Channel{
+				Models: tt.models,
+			}
+			channel.SetOtherSettings(dto.ChannelOtherSettings{ModelPrefix: tt.prefix})
+			channel.NormalizeModelsWithPrefix()
+			assert.Equal(t, tt.expected, channel.Models)
+		})
+	}
+}
+
 func TestAdvancedCustomChannelRequiresModelListRouteOnlyWhenUpdateChecksEnabled(t *testing.T) {
 	inferenceRoute := dto.AdvancedCustomRoute{
 		IncomingPath: "/v1/chat/completions",

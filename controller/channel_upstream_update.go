@@ -183,27 +183,42 @@ func collectPendingUpstreamModelChangesFromModels(
 	modelMapping map[string]string,
 	modelPrefix string,
 ) (pendingAddModels []string, pendingRemoveModels []string) {
-	// Strip prefix from local models for upstream comparison
-	localModels = lo.Map(localModels, func(m string, _ int) string {
+	// Local models are stored with the channel model_prefix; upstream models are
+	// unprefixed. Strip the prefix for membership comparison while preserving the
+	// original stored form for add/remove results.
+	stripPrefix := func(m string) string {
 		if modelPrefix != "" && strings.HasPrefix(m, modelPrefix) {
 			return strings.TrimPrefix(m, modelPrefix)
 		}
 		return m
-	})
+	}
+	addPrefix := func(m string) string {
+		if modelPrefix != "" && !strings.HasPrefix(m, modelPrefix) {
+			return modelPrefix + m
+		}
+		return m
+	}
 
-	localSet := make(map[string]struct{})
-	localModels = normalizeModelNames(localModels)
-	upstreamModels = normalizeModelNames(upstreamModels)
-	for _, modelName := range localModels {
+	storedLocal := normalizeModelNames(localModels)
+	normalizedUpstream := normalizeModelNames(upstreamModels)
+
+	strippedLocal := lo.Uniq(lo.Filter(lo.Map(storedLocal, func(m string, _ int) string {
+		return stripPrefix(m)
+	}), func(m string, _ int) bool { return m != "" }))
+
+	localSet := make(map[string]struct{}, len(strippedLocal))
+	for _, modelName := range strippedLocal {
 		localSet[modelName] = struct{}{}
 	}
-	upstreamSet := make(map[string]struct{}, len(upstreamModels))
-	for _, modelName := range upstreamModels {
+	upstreamSet := make(map[string]struct{}, len(normalizedUpstream))
+	for _, modelName := range normalizedUpstream {
 		upstreamSet[modelName] = struct{}{}
 	}
 
 	normalizedIgnoredModels := normalizeModelNames(ignoredModels)
 
+	// Model mapping source keys are the stored (prefixed) alias names; target
+	// values are the upstream (unprefixed) names.
 	redirectSourceSet := make(map[string]struct{}, len(modelMapping))
 	redirectTargetSet := make(map[string]struct{}, len(modelMapping))
 	for source, target := range modelMapping {
@@ -219,7 +234,7 @@ func collectPendingUpstreamModelChangesFromModels(
 		coveredUpstreamSet[modelName] = struct{}{}
 	}
 
-	pendingAdd := lo.Filter(upstreamModels, func(modelName string, _ int) bool {
+	pendingAdd := lo.Filter(normalizedUpstream, func(modelName string, _ int) bool {
 		if _, ok := coveredUpstreamSet[modelName]; ok {
 			return false
 		}
@@ -234,16 +249,17 @@ func collectPendingUpstreamModelChangesFromModels(
 		}
 		return true
 	})
-	pendingRemove := lo.Filter(localModels, func(modelName string, _ int) bool {
+	pendingRemove := lo.Filter(storedLocal, func(modelName string, _ int) bool {
 		// Redirect source models are virtual aliases and should not be removed
 		// only because they are absent from upstream model list.
 		if _, ok := redirectSourceSet[modelName]; ok {
 			return false
 		}
-		_, ok := upstreamSet[modelName]
+		_, ok := upstreamSet[stripPrefix(modelName)]
 		return !ok
 	})
-	return normalizeModelNames(pendingAdd), normalizeModelNames(pendingRemove)
+	return normalizeModelNames(lo.Map(pendingAdd, func(m string, _ int) string { return addPrefix(m) })),
+		normalizeModelNames(pendingRemove)
 }
 
 func collectPendingUpstreamModelChanges(channel *model.Channel, settings dto.ChannelOtherSettings) (pendingAddModels []string, pendingRemoveModels []string, err error) {
@@ -476,6 +492,9 @@ func updateChannelUpstreamModelSettings(channel *model.Channel, settings dto.Cha
 		"settings": channel.OtherSettings,
 	}
 	if updateModels {
+		// Ensure detected upstream models carry the channel model_prefix,
+		// consistent with models entered in the channel editor.
+		channel.NormalizeModelsWithPrefix()
 		updates["models"] = channel.Models
 	}
 	return model.DB.Model(&model.Channel{}).Where("id = ?", channel.Id).Updates(updates).Error
@@ -507,7 +526,8 @@ func checkAndPersistChannelUpstreamModelUpdates(
 
 	if allowAutoApply && settings.UpstreamModelUpdateAutoSyncEnabled && len(pendingAddModels) > 0 {
 		originModels := normalizeModelNames(channel.GetModels())
-		// Re-apply prefix to detected models so they can be matched by clients
+		// pendingAddModels are already prefixed by the diff helper; guard against
+		// a stale/unprefixed entry just in case.
 		addedWithPrefix := lo.Map(pendingAddModels, func(m string, _ int) string {
 			if settings.ModelPrefix != "" && !strings.HasPrefix(m, settings.ModelPrefix) {
 				return settings.ModelPrefix + m

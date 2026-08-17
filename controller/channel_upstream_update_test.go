@@ -521,8 +521,8 @@ func TestCollectPendingUpstreamModelChangesFromModels_WithModelPrefix(t *testing
 		"byok-nvidia-nim/",
 	)
 
-	require.Equal(t, []string{"openai/gpt-4.1"}, pendingAddModels)
-	require.Equal(t, []string{"openai/gpt-3.5-turbo", "stale-model"}, pendingRemoveModels)
+	require.Equal(t, []string{"byok-nvidia-nim/openai/gpt-4.1"}, pendingAddModels)
+	require.Equal(t, []string{"byok-nvidia-nim/openai/gpt-3.5-turbo", "stale-model"}, pendingRemoveModels)
 }
 
 func TestCollectPendingUpstreamModelChangesFromModels_WithModelPrefixAndMapping(t *testing.T) {
@@ -536,7 +536,7 @@ func TestCollectPendingUpstreamModelChangesFromModels_WithModelPrefixAndMapping(
 		"byok/",
 	)
 
-	require.Equal(t, []string{"openai/gpt-4.1"}, pendingAddModels)
+	require.Equal(t, []string{"byok/openai/gpt-4.1"}, pendingAddModels)
 	require.Equal(t, []string{}, pendingRemoveModels)
 }
 

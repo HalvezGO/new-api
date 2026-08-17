@@ -529,7 +529,31 @@ func (channel *Channel) GetStatusCodeMapping() string {
 	return *channel.StatusCodeMapping
 }
 
+// NormalizeModelsWithPrefix ensures every model name carries the configured
+// model_prefix. Models that already have the prefix are left untouched, so the
+// normalization is idempotent. Without a configured prefix the field is unchanged.
+func (channel *Channel) NormalizeModelsWithPrefix() {
+	prefix := channel.GetOtherSettings().ModelPrefix
+	if prefix == "" {
+		return
+	}
+	models := channel.GetModels()
+	normalized := make([]string, 0, len(models))
+	for _, m := range models {
+		m = strings.TrimSpace(m)
+		if m == "" {
+			continue
+		}
+		if !strings.HasPrefix(m, prefix) {
+			m = prefix + m
+		}
+		normalized = append(normalized, m)
+	}
+	channel.Models = strings.Join(normalized, ",")
+}
+
 func (channel *Channel) Insert() error {
+	channel.NormalizeModelsWithPrefix()
 	var err error
 	err = DB.Create(channel).Error
 	if err != nil {
@@ -540,6 +564,7 @@ func (channel *Channel) Insert() error {
 }
 
 func (channel *Channel) Update() error {
+	channel.NormalizeModelsWithPrefix()
 	// If this is a multi-key channel, recalculate MultiKeySize based on the current key list to avoid inconsistency after editing keys
 	if channel.ChannelInfo.IsMultiKey {
 		var keyStr string
