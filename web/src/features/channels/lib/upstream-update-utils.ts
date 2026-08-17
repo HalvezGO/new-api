@@ -24,6 +24,29 @@ export function normalizeModelList(models: unknown[] = []): string[] {
   )
 }
 
+/**
+ * Strip channel model prefix from a model name for display purposes.
+ * Models are stored with prefix in the DB; this returns the display name.
+ */
+export function stripModelPrefix(
+  model: string,
+  prefix: string
+): string {
+  if (!prefix || !model.startsWith(prefix)) return model
+  return model.slice(prefix.length)
+}
+
+/**
+ * Apply channel model prefix to a model name before submission.
+ */
+export function addModelPrefix(
+  model: string,
+  prefix: string
+): string {
+  if (!prefix || model.startsWith(prefix)) return model
+  return prefix + model
+}
+
 export function parseUpstreamUpdateMeta(settings: unknown): {
   enabled: boolean
   pendingAddModels: string[]
@@ -44,13 +67,14 @@ export function parseUpstreamUpdateMeta(settings: unknown): {
     return { enabled: false, pendingAddModels: [], pendingRemoveModels: [] }
   }
 
+  const prefix = String(parsed.model_prefix || '')
   return {
     enabled: parsed.upstream_model_update_check_enabled === true,
     pendingAddModels: normalizeModelList(
       (parsed.upstream_model_update_last_detected_models as unknown[]) || []
-    ),
+    ).map((m) => stripModelPrefix(m, prefix)),
     pendingRemoveModels: normalizeModelList(
       (parsed.upstream_model_update_last_removed_models as unknown[]) || []
-    ),
+    ).map((m) => stripModelPrefix(m, prefix)),
   }
 }

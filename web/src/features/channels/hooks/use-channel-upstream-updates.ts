@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 
 import { api, type ApiRequestConfig } from '@/lib/api'
 
-import { normalizeModelList } from '../lib/upstream-update-utils'
+import { normalizeModelList, stripModelPrefix, addModelPrefix } from '../lib/upstream-update-utils'
 
 const upstreamUpdateRequestConfig = {
   skipBusinessError: true,
@@ -57,6 +57,7 @@ export function useChannelUpstreamUpdates(refresh: () => Promise<void>) {
   const [addModels, setAddModels] = useState<string[]>([])
   const [removeModels, setRemoveModels] = useState<string[]>([])
   const [preferredTab, setPreferredTab] = useState<'add' | 'remove'>('add')
+  const [channelModelPrefix, setChannelModelPrefix] = useState<string>('')
   const [applyLoading, setApplyLoading] = useState(false)
   const [detectAllLoading, setDetectAllLoading] = useState(false)
   const [applyAllLoading, setApplyAllLoading] = useState(false)
@@ -75,13 +76,15 @@ export function useChannelUpstreamUpdates(refresh: () => Promise<void>) {
     ) => {
       const normAdd = normalizeModelList(pendingAdd)
       const normRemove = normalizeModelList(pendingRemove)
+      const prefix = String(record?.model_prefix || '')
       if (!record?.id || (normAdd.length === 0 && normRemove.length === 0)) {
         toast.info(t('No processable upstream model updates for this channel'))
         return
       }
       setChannel(record)
-      setAddModels(normAdd)
-      setRemoveModels(normRemove)
+      setAddModels(normAdd.map((m) => stripModelPrefix(m, prefix)))
+      setRemoveModels(normRemove.map((m) => stripModelPrefix(m, prefix)))
+      setChannelModelPrefix(prefix)
       setPreferredTab(tab)
       setShowModal(true)
     },
@@ -93,6 +96,7 @@ export function useChannelUpstreamUpdates(refresh: () => Promise<void>) {
     setChannel(null)
     setAddModels([])
     setRemoveModels([])
+    setChannelModelPrefix('')
     setPreferredTab('add')
   }, [])
 
@@ -112,9 +116,16 @@ export function useChannelUpstreamUpdates(refresh: () => Promise<void>) {
       applyRef.current = true
       setApplyLoading(true)
       try {
-        const normSelectedAdd = normalizeModelList(selectedAdd)
-        const selectedAddSet = new Set(normSelectedAdd)
-        const ignoreModels = addModels.filter((m) => !selectedAddSet.has(m))
+        const normSelectedAdd = normalizeModelList(selectedAdd).map((m) =>
+          addModelPrefix(m, channelModelPrefix)
+        )
+        const normSelectedRemove = normalizeModelList(selectedRemove).map((m) =>
+          addModelPrefix(m, channelModelPrefix)
+        )
+        const selectedAddSet = new Set(normalizeModelList(selectedAdd))
+        const ignoreModels = addModels
+          .filter((m) => !selectedAddSet.has(m))
+          .map((m) => addModelPrefix(m, channelModelPrefix))
 
         const res = await api.post(
           '/api/channel/upstream_updates/apply',
@@ -122,7 +133,7 @@ export function useChannelUpstreamUpdates(refresh: () => Promise<void>) {
             id: channel.id,
             add_models: normSelectedAdd,
             ignore_models: ignoreModels,
-            remove_models: normalizeModelList(selectedRemove),
+            remove_models: normSelectedRemove,
           },
           upstreamUpdateRequestConfig
         )

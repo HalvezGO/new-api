@@ -36,6 +36,7 @@ import {
   stringifyAdvancedCustomConfig,
   validateAdvancedCustomConfig,
 } from './advanced-custom'
+import { stripModelPrefix, addModelPrefix } from './upstream-update-utils'
 
 // ============================================================================
 // Form Validation Schema
@@ -562,7 +563,13 @@ export function transformChannelToFormDefaults(
     base_url: channel.base_url || '',
     key: '', // Never populate key from backend for security
     openai_organization: channel.openai_organization || '',
-    models: channel.models || '',
+    models: (modelPrefix
+      ? (channel.models || '')
+          .split(',')
+          .map((m) => stripModelPrefix(m.trim(), modelPrefix))
+          .filter(Boolean)
+          .join(',')
+      : channel.models) || '',
     group: parseGroups(channel.group || 'default'),
     model_mapping: channel.model_mapping || '',
     priority: channel.priority || 0,
@@ -800,7 +807,12 @@ export function transformFormDataToCreatePayload(formData: ChannelFormValues): {
     base_url: normalizeBaseUrl(formData.base_url) || null,
     key: formData.key,
     openai_organization: formData.openai_organization || null,
-    models: formData.models,
+    models: formData.model_prefix
+      ? (formData.models || '')
+          .split(',')
+          .map((m) => addModelPrefix(m.trim(), formData.model_prefix))
+          .join(',')
+      : formData.models,
     group: formatGroups(formData.group),
     model_mapping: formData.model_mapping || null,
     priority: formData.priority || null,
@@ -848,7 +860,12 @@ export function transformFormDataToUpdatePayload(
     type: formData.type,
     base_url: normalizeBaseUrl(formData.base_url) || null,
     openai_organization: formData.openai_organization || null,
-    models: formData.models,
+    models: formData.model_prefix
+      ? (formData.models || '')
+          .split(',')
+          .map((m) => addModelPrefix(m.trim(), formData.model_prefix))
+          .join(',')
+      : formData.models,
     group: formatGroups(formData.group),
     model_mapping: formData.model_mapping || null,
     priority: formData.priority ?? 0,
