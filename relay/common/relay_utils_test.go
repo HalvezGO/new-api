@@ -40,7 +40,7 @@ func TestGetFullRequestURL(t *testing.T) {
 			want:       "https://api.example.com/v2/chat/completions",
 		},
 		{
-			name:       "cloudflare gateway strips /v1 via special case",
+			name:       "cloudflare gateway with /v4 in path triggers version strip",
 			baseURL:    "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai",
 			requestURL: "/v1/chat/completions",
 			channelType: constant.ChannelTypeOpenAI,
@@ -53,10 +53,10 @@ func TestGetFullRequestURL(t *testing.T) {
 			want:       "https://api.example.com/v1/chat/completions",
 		},
 		{
-			name:       "base_url with /v1beta does NOT trigger version strip",
+			name:       "base_url with /v1beta triggers version strip",
 			baseURL:    "https://api.example.com/agent/v1beta",
 			requestURL: "/v1/chat/completions",
-			want:       "https://api.example.com/agent/v1beta/v1/chat/completions",
+			want:       "https://api.example.com/agent/v1beta/chat/completions",
 		},
 		{
 			name:       "base_url with /v1 in middle of path triggers strip",

@@ -72,16 +72,8 @@ func baseURLHasVersionPath(baseURL string) bool {
 		if !strings.HasPrefix(segment, "v") || len(segment) < 2 {
 			continue
 		}
-		allDigits := true
-		for _, c := range segment[1:] {
-			if c < '0' || c > '9' {
-				allDigits = false
-				break
-			}
-		}
-		if allDigits {
-			return true
-		}
+		// Any /v... segment is a version: /v1, /v2, /v1beta, /v1-preview, etc.
+		return true
 	}
 	return false
 }
