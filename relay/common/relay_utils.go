@@ -24,6 +24,14 @@ type HasImage interface {
 }
 
 func GetFullRequestURL(baseURL string, requestURL string, channelType int) string {
+	// If baseURL already ends with a version segment like /v1 or /v2,
+	// strip the /vN prefix from requestURL to avoid double-versioning.
+	// e.g. baseURL="https://example.com/v2", requestURL="/v1/chat/completions"
+	//   → "https://example.com/v2/chat/completions"
+	if baseURLPathHasVersionSuffix(baseURL) {
+		requestURL = stripRequestURLVersionPrefix(requestURL)
+	}
+
 	fullRequestURL := fmt.Sprintf("%s%s", baseURL, requestURL)
 
 	if strings.HasPrefix(baseURL, "https://gateway.ai.cloudflare.com") {
@@ -35,6 +43,44 @@ func GetFullRequestURL(baseURL string, requestURL string, channelType int) strin
 		}
 	}
 	return fullRequestURL
+}
+
+func baseURLPathHasVersionSuffix(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	p := u.Path
+	if !strings.HasSuffix(p, "/") {
+		idx := strings.LastIndex(p, "/")
+		if idx >= 0 {
+			segment := p[idx+1:]
+			if strings.HasPrefix(segment, "v") && len(segment) > 1 {
+				allDigits := true
+				for _, c := range segment[1:] {
+					if c < '0' || c > '9' {
+						allDigits = false
+						break
+					}
+				}
+				if allDigits {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func stripRequestURLVersionPrefix(requestURL string) string {
+	if !strings.HasPrefix(requestURL, "/v") {
+		return requestURL
+	}
+	idx := strings.IndexByte(requestURL[2:], '/')
+	if idx < 0 {
+		return requestURL
+	}
+	return requestURL[idx+2:]
 }
 
 func SanitizeURLForLog(rawURL string) string {

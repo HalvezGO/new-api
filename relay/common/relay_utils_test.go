@@ -22,35 +22,35 @@ func TestGetFullRequestURL(t *testing.T) {
 		want        string
 	}{
 		{
-			name:       "simple concatenation",
+			name:       "no version in base_url, keeps /v1 in requestURL",
 			baseURL:    "https://api.openai.com",
-			requestURL: "/chat/completions",
-			want:       "https://api.openai.com/chat/completions",
-		},
-		{
-			name:       "base_url includes version segment",
-			baseURL:    "https://api.openai.com/v1",
-			requestURL: "/chat/completions",
+			requestURL: "/v1/chat/completions",
 			want:       "https://api.openai.com/v1/chat/completions",
 		},
 		{
-			name:       "base_url with v2 version segment",
+			name:       "base_url with /v1 strips /v1 from requestURL",
+			baseURL:    "https://api.openai.com/v1",
+			requestURL: "/v1/chat/completions",
+			want:       "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			name:       "base_url with /v2 strips /v1 from requestURL, keeping /v2",
 			baseURL:    "https://api.example.com/v2",
-			requestURL: "/chat/completions",
+			requestURL: "/v1/chat/completions",
 			want:       "https://api.example.com/v2/chat/completions",
 		},
 		{
-			name:       "base_url with deeper path and version",
+			name:       "cloudflare gateway with base_url including version",
 			baseURL:    "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai",
 			requestURL: "/v1/chat/completions",
 			channelType: constant.ChannelTypeOpenAI,
 			want:       "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai/chat/completions",
 		},
 		{
-			name:       "base_url with version and requestURL without /v1 prefix",
-			baseURL:    "https://api.example.com/v2",
+			name:       "base_url with /v1, requestURL without /v1 prefix",
+			baseURL:    "https://api.example.com/v1",
 			requestURL: "/chat/completions",
-			want:       "https://api.example.com/v2/chat/completions",
+			want:       "https://api.example.com/v1/chat/completions",
 		},
 	}
 	for _, tt := range tests {
