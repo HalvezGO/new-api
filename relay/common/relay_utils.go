@@ -24,11 +24,11 @@ type HasImage interface {
 }
 
 func GetFullRequestURL(baseURL string, requestURL string, channelType int) string {
-	// If baseURL already ends with a version segment like /v1 or /v2,
+	// If baseURL contains a version segment like /v1 or /v2 (but not /v1beta or /v4abc),
 	// strip the /vN prefix from requestURL to avoid double-versioning.
 	// e.g. baseURL="https://example.com/v2", requestURL="/v1/chat/completions"
 	//   → "https://example.com/v2/chat/completions"
-	if baseURLPathHasVersionSuffix(baseURL) {
+	if baseURLHasVersionPath(baseURL) {
 		requestURL = stripRequestURLVersionPrefix(requestURL)
 	}
 
@@ -45,33 +45,49 @@ func GetFullRequestURL(baseURL string, requestURL string, channelType int) strin
 	return fullRequestURL
 }
 
-func baseURLPathHasVersionSuffix(baseURL string) bool {
+// baseURLHasVersionPath reports whether any path segment of baseURL matches
+// a pure numeric version pattern like /v1, /v2, /v10.
+// Scans backwards so that /v1 in "https://example.com/agent/v1" is found,
+// while /v4 in Cloudflare's path is not (it has trailing non-digit chars).
+func baseURLHasVersionPath(baseURL string) bool {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return false
 	}
-	p := u.Path
-	if !strings.HasSuffix(p, "/") {
+	p := strings.TrimRight(u.Path, "/")
+	if p == "" {
+		return false
+	}
+	// Walk segments backwards; find the last one that is /v\d+.
+	for p != "" {
+		var segment string
 		idx := strings.LastIndex(p, "/")
-		if idx >= 0 {
-			segment := p[idx+1:]
-			if strings.HasPrefix(segment, "v") && len(segment) > 1 {
-				allDigits := true
-				for _, c := range segment[1:] {
-					if c < '0' || c > '9' {
-						allDigits = false
-						break
-					}
-				}
-				if allDigits {
-					return true
-				}
+		if idx < 0 {
+			segment = p
+			p = ""
+		} else {
+			segment = p[idx+1:]
+			p = p[:idx]
+		}
+		if !strings.HasPrefix(segment, "v") || len(segment) < 2 {
+			continue
+		}
+		allDigits := true
+		for _, c := range segment[1:] {
+			if c < '0' || c > '9' {
+				allDigits = false
+				break
 			}
+		}
+		if allDigits {
+			return true
 		}
 	}
 	return false
 }
 
+// stripRequestURLVersionPrefix removes the leading /vN segment from
+// requestURL, e.g. "/v1/chat/completions" → "/chat/completions".
 func stripRequestURLVersionPrefix(requestURL string) string {
 	if !strings.HasPrefix(requestURL, "/v") {
 		return requestURL
