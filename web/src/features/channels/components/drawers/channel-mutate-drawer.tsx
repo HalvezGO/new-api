@@ -2777,7 +2777,7 @@ export function ChannelMutateDrawer({
                                     </FormControl>
                                     <FormDescription>
                                       {t(
-                                        'Custom API base URL. For official channels, New API has built-in addresses. Only fill this for third-party proxy sites or special endpoints. Do not add trailing slash. The system automatically handles the /v1 path.' 
+                                        'Custom API base URL. For official channels, New API has built-in addresses. Only fill this for third-party proxy sites or special endpoints. Do not add trailing slash. Include the version in the URL (e.g. https://api.openai.com/v1).' 
                                       )}
                                     </FormDescription>
                                     <FormMessage />

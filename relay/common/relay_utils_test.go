@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetFullRequestURLStripsVersionWhenBaseURLHasVersion(t *testing.T) {
+func TestGetFullRequestURL(t *testing.T) {
 	tests := []struct {
 		name        string
 		baseURL     string
@@ -22,53 +22,35 @@ func TestGetFullRequestURLStripsVersionWhenBaseURLHasVersion(t *testing.T) {
 		want        string
 	}{
 		{
-			name:       "base_url without path appends requestURL as-is",
+			name:       "simple concatenation",
 			baseURL:    "https://api.openai.com",
-			requestURL: "/v1/chat/completions",
-			want:       "https://api.openai.com/v1/chat/completions",
+			requestURL: "/chat/completions",
+			want:       "https://api.openai.com/chat/completions",
 		},
 		{
-			name:       "base_url ending with /v1 strips /v1 from requestURL",
+			name:       "base_url includes version segment",
 			baseURL:    "https://api.openai.com/v1",
-			requestURL: "/v1/chat/completions",
+			requestURL: "/chat/completions",
 			want:       "https://api.openai.com/v1/chat/completions",
 		},
 		{
-			name:       "base_url ending with /v2 strips /v1 from requestURL, keeping /v2",
+			name:       "base_url with v2 version segment",
 			baseURL:    "https://api.example.com/v2",
-			requestURL: "/v1/chat/completions",
+			requestURL: "/chat/completions",
 			want:       "https://api.example.com/v2/chat/completions",
 		},
 		{
-			name:       "base_url with deeper path and version suffix",
+			name:       "base_url with deeper path and version",
 			baseURL:    "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai",
 			requestURL: "/v1/chat/completions",
 			channelType: constant.ChannelTypeOpenAI,
 			want:       "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai/chat/completions",
 		},
 		{
-			name:       "base_url with version and requestURL without version prefix",
+			name:       "base_url with version and requestURL without /v1 prefix",
 			baseURL:    "https://api.example.com/v2",
 			requestURL: "/chat/completions",
 			want:       "https://api.example.com/v2/chat/completions",
-		},
-		{
-			name:       "base_url with /v10 version segment",
-			baseURL:    "https://api.example.com/v10",
-			requestURL: "/v1/chat/completions",
-			want:       "https://api.example.com/v10/chat/completions",
-		},
-		{
-			name:       "no version in requestURL, base_url has version — no double-strip",
-			baseURL:    "https://api.example.com/v2",
-			requestURL: "/chat/completions",
-			want:       "https://api.example.com/v2/chat/completions",
-		},
-		{
-			name:       "base_url with query string and version",
-			baseURL:    "https://api.example.com/v1",
-			requestURL: "/v1/chat/completions?foo=bar",
-			want:       "https://api.example.com/v1/chat/completions?foo=bar",
 		},
 	}
 	for _, tt := range tests {
