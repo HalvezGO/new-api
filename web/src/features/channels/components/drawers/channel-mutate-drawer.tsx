@@ -1312,22 +1312,9 @@ export function ChannelMutateDrawer({
     }
   }, [form, isEditing, multiKeyMode, supportsMultiKeyAddMode])
 
-  // Validate base_url - warn if it ends with /v1
+  // Validate base_url - warn if it ends with /v1 (soft warning, not blocked)
   useEffect(() => {
-    if (!currentBaseUrl || !currentBaseUrl.endsWith('/v1')) return
-
-    // Show warning toast
-    const timer = setTimeout(() => {
-      toast.warning(
-        t(
-          'Warning: Base URL should not end with /v1. New API will handle it automatically. This may cause request failures.'
-        ),
-        { duration: 5000 }
-      )
-    }, 500)
-
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // No longer blocking /v1 — the backend auto-strips version prefixes.
   }, [currentBaseUrl])
 
   // Handle key deduplication
@@ -2790,7 +2777,7 @@ export function ChannelMutateDrawer({
                                     </FormControl>
                                     <FormDescription>
                                       {t(
-                                        'Custom API base URL. For official channels, New API has built-in addresses. Only fill this for third-party proxy sites or special endpoints. Do not add /v1 or trailing slash.'
+                                        'Custom API base URL. For official channels, New API has built-in addresses. Only fill this for third-party proxy sites or special endpoints. Do not add trailing slash. The system automatically handles the /v1 path.' 
                                       )}
                                     </FormDescription>
                                     <FormMessage />

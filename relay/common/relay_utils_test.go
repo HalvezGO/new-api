@@ -13,6 +13,72 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetFullRequestURLStripsVersionWhenBaseURLHasVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		baseURL     string
+		requestURL  string
+		channelType int
+		want        string
+	}{
+		{
+			name:       "base_url without path appends requestURL as-is",
+			baseURL:    "https://api.openai.com",
+			requestURL: "/v1/chat/completions",
+			want:       "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			name:       "base_url ending with /v1 strips /v1 from requestURL",
+			baseURL:    "https://api.openai.com/v1",
+			requestURL: "/v1/chat/completions",
+			want:       "https://api.openai.com/v1/chat/completions",
+		},
+		{
+			name:       "base_url ending with /v2 strips /v1 from requestURL, keeping /v2",
+			baseURL:    "https://api.example.com/v2",
+			requestURL: "/v1/chat/completions",
+			want:       "https://api.example.com/v2/chat/completions",
+		},
+		{
+			name:       "base_url with deeper path and version suffix",
+			baseURL:    "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai",
+			requestURL: "/v1/chat/completions",
+			channelType: constant.ChannelTypeOpenAI,
+			want:       "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai/chat/completions",
+		},
+		{
+			name:       "base_url with version and requestURL without version prefix",
+			baseURL:    "https://api.example.com/v2",
+			requestURL: "/chat/completions",
+			want:       "https://api.example.com/v2/chat/completions",
+		},
+		{
+			name:       "base_url with /v10 version segment",
+			baseURL:    "https://api.example.com/v10",
+			requestURL: "/v1/chat/completions",
+			want:       "https://api.example.com/v10/chat/completions",
+		},
+		{
+			name:       "no version in requestURL, base_url has version — no double-strip",
+			baseURL:    "https://api.example.com/v2",
+			requestURL: "/chat/completions",
+			want:       "https://api.example.com/v2/chat/completions",
+		},
+		{
+			name:       "base_url with query string and version",
+			baseURL:    "https://api.example.com/v1",
+			requestURL: "/v1/chat/completions?foo=bar",
+			want:       "https://api.example.com/v1/chat/completions?foo=bar",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetFullRequestURL(tt.baseURL, tt.requestURL, tt.channelType)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestSanitizeURLForLogMasksSensitiveQueryValues(t *testing.T) {
 	rawURL := "https://example.test/v1beta/models/gemini:streamGenerateContent?alt=sse&key=sk-secret&access_token=ya29-secret&api-version=2024-02-01"
 
