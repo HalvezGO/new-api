@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 
 	"github.com/QuantumNous/new-api/model"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/setting/billing_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -230,7 +231,7 @@ func FetchUpstreamRatios(c *gin.Context) {
 			endpoint := chItem.Endpoint
 			var fullURL string
 			if isOpenRouter {
-				fullURL = chItem.BaseURL + "/v1/models"
+				fullURL = relaycommon.CleanBaseURLVersion(chItem.BaseURL) + "/v1/models"
 			} else if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
 				fullURL = endpoint
 			} else {

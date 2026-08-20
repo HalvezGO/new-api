@@ -23,12 +23,48 @@ type HasImage interface {
 	HasImage() bool
 }
 
+// CleanBaseURLVersion strips a trailing /vN version segment from baseURL if
+// present, so callers can safely append their own /vN prefix.
+// e.g. "https://api.example.com/v1" → "https://api.example.com"
+//
+//	"https://api.example.com"      → "https://api.example.com" (no-op)
+//	"https://dashscope.aliyuncs.com/compatible-mode/v1" → unchanged (no trailing /vN)
+func CleanBaseURLVersion(baseURL string) string {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return baseURL
+	}
+	p := strings.TrimRight(u.Path, "/")
+	if p == "" {
+		return strings.TrimRight(baseURL, "/")
+	}
+	// Walk segments backwards; find the last /v... segment.
+	rest := p
+	for rest != "" {
+		var segment string
+		idx := strings.LastIndex(rest, "/")
+		if idx < 0 {
+			segment = rest
+			rest = ""
+		} else {
+			segment = rest[idx+1:]
+			rest = rest[:idx]
+		}
+		if strings.HasPrefix(segment, "v") && len(segment) >= 2 {
+			// Found a version segment — strip it and everything after.
+			u.Path = rest
+			return strings.TrimRight(u.String(), "/")
+		}
+	}
+	return strings.TrimRight(baseURL, "/")
+}
+
 func GetFullRequestURL(baseURL string, requestURL string, channelType int) string {
-	// If baseURL contains a version segment like /v1 or /v2 (but not /v1beta or /v4abc),
+	// If baseURL contains a version segment like /v1, /v2, /v1beta,
 	// strip the /vN prefix from requestURL to avoid double-versioning.
 	// e.g. baseURL="https://example.com/v2", requestURL="/v1/chat/completions"
 	//   → "https://example.com/v2/chat/completions"
-	if baseURLHasVersionPath(baseURL) {
+	if CleanBaseURLVersion(baseURL) != baseURL {
 		requestURL = stripRequestURLVersionPrefix(requestURL)
 	}
 
@@ -43,39 +79,6 @@ func GetFullRequestURL(baseURL string, requestURL string, channelType int) strin
 		}
 	}
 	return fullRequestURL
-}
-
-// baseURLHasVersionPath reports whether any path segment of baseURL matches
-// a pure numeric version pattern like /v1, /v2, /v10.
-// Scans backwards so that /v1 in "https://example.com/agent/v1" is found,
-// while /v4 in Cloudflare's path is not (it has trailing non-digit chars).
-func baseURLHasVersionPath(baseURL string) bool {
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return false
-	}
-	p := strings.TrimRight(u.Path, "/")
-	if p == "" {
-		return false
-	}
-	// Walk segments backwards; find the last one that is /v\d+.
-	for p != "" {
-		var segment string
-		idx := strings.LastIndex(p, "/")
-		if idx < 0 {
-			segment = p
-			p = ""
-		} else {
-			segment = p[idx+1:]
-			p = p[:idx]
-		}
-		if !strings.HasPrefix(segment, "v") || len(segment) < 2 {
-			continue
-		}
-		// Any /v... segment is a version: /v1, /v2, /v1beta, /v1-preview, etc.
-		return true
-	}
-	return false
 }
 
 // stripRequestURLVersionPrefix removes the leading /vN segment from

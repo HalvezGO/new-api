@@ -13,6 +13,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCleanBaseURLVersion(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{"no version", "https://api.openai.com", "https://api.openai.com"},
+		{"strips trailing /v1", "https://api.openai.com/v1", "https://api.openai.com"},
+		{"strips trailing /v2", "https://api.example.com/v2", "https://api.example.com"},
+		{"strips /v1 from middle of path", "https://api.example.com/agent/v1", "https://api.example.com/agent"},
+		{"strips /v1beta", "https://api.example.com/agent/v1beta", "https://api.example.com/agent"},
+		{"strips /v1 from compatible-mode path", "https://dashscope.aliyuncs.com/compatible-mode/v1", "https://dashscope.aliyuncs.com/compatible-mode"},
+		{"strips /v10", "https://api.example.com/v10", "https://api.example.com"},
+		{"trailing slash", "https://api.openai.com/", "https://api.openai.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CleanBaseURLVersion(tt.url)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestGetFullRequestURL(t *testing.T) {
 	tests := []struct {
 		name        string
