@@ -424,8 +424,10 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 		return service.FetchCodexChannelModels(channel)
 	}
 
+	// If baseURL already contains a version segment (/v1, /v2, /v1beta, etc.),
+	// use it as-is and append only the endpoint path. Otherwise default to /v1.
+	hasVersion := relaycommon.CleanBaseURLVersion(baseURL) != baseURL
 	var url string
-	cleanBaseURL := relaycommon.CleanBaseURLVersion(baseURL)
 	switch channel.Type {
 	case constant.ChannelTypeAli:
 		url = fmt.Sprintf("%s/compatible-mode/v1/models", baseURL)
@@ -438,17 +440,25 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 	case constant.ChannelTypeVolcEngine:
 		if plan, ok := constant.ChannelSpecialBases[baseURL]; ok && plan.OpenAIBaseURL != "" {
 			url = fmt.Sprintf("%s/v1/models", plan.OpenAIBaseURL)
+		} else if hasVersion {
+			url = fmt.Sprintf("%s/models", baseURL)
 		} else {
-			url = fmt.Sprintf("%s/v1/models", cleanBaseURL)
+			url = fmt.Sprintf("%s/v1/models", baseURL)
 		}
 	case constant.ChannelTypeMoonshot:
 		if plan, ok := constant.ChannelSpecialBases[baseURL]; ok && plan.OpenAIBaseURL != "" {
 			url = fmt.Sprintf("%s/models", plan.OpenAIBaseURL)
+		} else if hasVersion {
+			url = fmt.Sprintf("%s/models", baseURL)
 		} else {
-			url = fmt.Sprintf("%s/v1/models", cleanBaseURL)
+			url = fmt.Sprintf("%s/v1/models", baseURL)
 		}
 	default:
-		url = fmt.Sprintf("%s/v1/models", cleanBaseURL)
+		if hasVersion {
+			url = fmt.Sprintf("%s/models", baseURL)
+		} else {
+			url = fmt.Sprintf("%s/v1/models", baseURL)
+		}
 	}
 
 	key, _, apiErr := channel.GetNextEnabledKey()
