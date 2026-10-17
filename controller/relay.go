@@ -241,6 +241,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
+		if !waitBeforeRetry(c, newAPIError.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
+			break
+		}
 	}
 
 	useChannel := c.GetStringSlice("use_channel")
@@ -266,6 +269,25 @@ func addUsedChannel(c *gin.Context, channelId int) {
 	useChannel := c.GetStringSlice("use_channel")
 	useChannel = append(useChannel, fmt.Sprintf("%d", channelId))
 	c.Set("use_channel", useChannel)
+}
+
+// waitBeforeRetry applies the configured retry interval before the next retry
+// attempt when the failure status code is listed in the retry interval status
+// codes. It reports whether the caller should keep retrying: false means the
+// client disconnected during the wait and retrying would be pointless.
+func waitBeforeRetry(c *gin.Context, statusCode int, remainingRetry int) bool {
+	if remainingRetry <= 0 || common.RetryInterval <= 0 || !operation_setting.ShouldUseRetryInterval(statusCode) {
+		return true
+	}
+	logger.LogInfo(c, fmt.Sprintf("上游返回状态码 %d，等待 %dms 后重试（剩余重试次数 %d）", statusCode, common.RetryInterval, remainingRetry))
+	timer := time.NewTimer(time.Duration(common.RetryInterval) * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-c.Request.Context().Done():
+		return false
+	}
 }
 
 func fastTokenCountMetaForPricing(request dto.Request) *types.TokenCountMeta {
@@ -567,6 +589,9 @@ func RelayTask(c *gin.Context) {
 		}
 
 		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
+			break
+		}
+		if !waitBeforeRetry(c, taskErr.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
 	}

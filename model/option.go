@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -156,6 +157,7 @@ func InitOptionMap() {
 	//common.OptionMap["ChatLink2"] = common.ChatLink2
 	common.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(common.QuotaPerUnit, 'f', -1, 64)
 	common.OptionMap["RetryTimes"] = strconv.Itoa(common.RetryTimes)
+	common.OptionMap["RetryInterval"] = strconv.Itoa(common.RetryInterval)
 	common.OptionMap["DataExportInterval"] = strconv.Itoa(common.DataExportInterval)
 	common.OptionMap["DataExportDefaultTime"] = common.DataExportDefaultTime
 	common.OptionMap["DefaultCollapseSidebar"] = strconv.FormatBool(common.DefaultCollapseSidebar)
@@ -175,6 +177,7 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
+	common.OptionMap["RetryIntervalStatusCodes"] = operation_setting.RetryIntervalStatusCodesToString()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
 
 	// 自动添加所有注册的模型配置
@@ -215,7 +218,41 @@ func validateOptionValue(key string, value string) error {
 	if key == "MaxTokenAutoGroups" {
 		return setting.ValidateMaxTokenAutoGroups(value)
 	}
+	if key == "RetryTimes" || key == "RetryInterval" {
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("%s must be an integer: %s", key, value)
+		}
+		maxValue := common.MaxRetryTimes
+		if key == "RetryInterval" {
+			maxValue = common.MaxRetryInterval
+		}
+		if v < 0 || v > maxValue {
+			return fmt.Errorf("%s must be between 0 and %d", key, maxValue)
+		}
+	}
 	return nil
+}
+
+// parseRetryOptionInt parses an integer retry option and clamps it into
+// [0, maxValue]. The database load path bypasses validateOptionValue, so
+// out-of-range legacy values are clamped and logged here instead of silently
+// disabling retries or turning retries into a burst.
+func parseRetryOptionInt(key string, value string, maxValue int) int {
+	v, err := strconv.Atoi(value)
+	if err != nil {
+		common.SysLog(fmt.Sprintf("invalid %s option value %q, using 0", key, value))
+		return 0
+	}
+	if v < 0 {
+		common.SysLog(fmt.Sprintf("%s option value %d is negative, clamped to 0", key, v))
+		return 0
+	}
+	if v > maxValue {
+		common.SysLog(fmt.Sprintf("%s option value %d exceeds %d, clamped", key, v, maxValue))
+		return maxValue
+	}
+	return v
 }
 
 func UpdateOption(key string, value string) error {
@@ -549,7 +586,9 @@ func updateOptionMap(key string, value string) (err error) {
 	case "ModelRequestRateLimitGroup":
 		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
 	case "RetryTimes":
-		common.RetryTimes, _ = strconv.Atoi(value)
+		common.RetryTimes = parseRetryOptionInt(key, value, common.MaxRetryTimes)
+	case "RetryInterval":
+		common.RetryInterval = parseRetryOptionInt(key, value, common.MaxRetryInterval)
 	case "DataExportInterval":
 		common.DataExportInterval, _ = strconv.Atoi(value)
 	case "DataExportDefaultTime":
@@ -594,6 +633,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
 	case "AutomaticRetryStatusCodes":
 		err = operation_setting.AutomaticRetryStatusCodesFromString(value)
+	case "RetryIntervalStatusCodes":
+		err = operation_setting.RetryIntervalStatusCodesFromString(value)
 	case "StreamCacheQueueLength":
 		setting.StreamCacheQueueLength, _ = strconv.Atoi(value)
 	case "PayMethods":

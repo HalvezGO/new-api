@@ -85,3 +85,25 @@ func TestIsAlwaysSkipRetryStatusCode(t *testing.T) {
 	require.True(t, IsAlwaysSkipRetryStatusCode(524))
 	require.False(t, IsAlwaysSkipRetryStatusCode(500))
 }
+
+func TestShouldUseRetryInterval(t *testing.T) {
+	orig := RetryIntervalStatusCodeRanges
+	t.Cleanup(func() { RetryIntervalStatusCodeRanges = orig })
+
+	// Default: only 429 waits before the next retry.
+	require.True(t, ShouldUseRetryInterval(429))
+	require.False(t, ShouldUseRetryInterval(500))
+
+	require.NoError(t, RetryIntervalStatusCodesFromString("429,500-599"))
+	require.True(t, ShouldUseRetryInterval(429))
+	require.True(t, ShouldUseRetryInterval(500))
+	require.True(t, ShouldUseRetryInterval(599))
+	require.False(t, ShouldUseRetryInterval(400))
+	require.Equal(t, "429,500-599", RetryIntervalStatusCodesToString())
+
+	// Empty configuration never waits, preserving the legacy zero-delay behavior.
+	require.NoError(t, RetryIntervalStatusCodesFromString(""))
+	require.False(t, ShouldUseRetryInterval(429))
+
+	require.Error(t, RetryIntervalStatusCodesFromString("99,foo"))
+}

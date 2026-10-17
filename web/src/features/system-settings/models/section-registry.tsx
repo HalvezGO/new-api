@@ -72,6 +72,8 @@ const MODELS_SECTIONS = [
       <RoutingReliabilitySection
         defaultValues={{
           RetryTimes: settings.RetryTimes,
+          RetryInterval: settings.RetryInterval,
+          RetryIntervalStatusCodes: settings.RetryIntervalStatusCodes,
           ChannelDisableThreshold: settings.ChannelDisableThreshold,
           AutomaticDisableChannelEnabled:
             settings.AutomaticDisableChannelEnabled,

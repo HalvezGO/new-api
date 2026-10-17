@@ -28,6 +28,11 @@ var AutomaticRetryStatusCodeRanges = []StatusCodeRange{
 	{Start: 525, End: 599},
 }
 
+// RetryIntervalStatusCodeRanges lists the failure status codes that add a
+// delay (RetryInterval) before the next retry attempt, used to avoid hammering
+// providers that rate-limit per minute window. Default: 429 only.
+var RetryIntervalStatusCodeRanges = []StatusCodeRange{{Start: 429, End: 429}}
+
 var alwaysSkipRetryStatusCodes = map[int]struct{}{
 	504: {},
 	524: {},
@@ -65,6 +70,26 @@ func AutomaticRetryStatusCodesFromString(s string) error {
 	}
 	AutomaticRetryStatusCodeRanges = ranges
 	return nil
+}
+
+func RetryIntervalStatusCodesToString() string {
+	return statusCodeRangesToString(RetryIntervalStatusCodeRanges)
+}
+
+func RetryIntervalStatusCodesFromString(s string) error {
+	ranges, err := ParseHTTPStatusCodeRanges(s)
+	if err != nil {
+		return err
+	}
+	RetryIntervalStatusCodeRanges = ranges
+	return nil
+}
+
+// ShouldUseRetryInterval reports whether a failure with the given status code
+// should wait RetryInterval before the next retry. An empty configuration
+// never waits, which keeps the legacy zero-delay behavior.
+func ShouldUseRetryInterval(code int) bool {
+	return shouldMatchStatusCodeRanges(RetryIntervalStatusCodeRanges, code)
 }
 
 func IsAlwaysSkipRetryStatusCode(code int) bool {

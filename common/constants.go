@@ -131,6 +131,15 @@ var QuotaRemindThreshold = 1000
 var PreConsumedQuota = 500
 
 var RetryTimes = 0
+var RetryInterval = 0 // unit is millisecond
+
+// RetryTimes and RetryInterval are admin-configurable. Clamp them at the
+// option boundary so a bad value cannot disable retries entirely, turn every
+// retry into a burst, or hold a request open indefinitely.
+const (
+	MaxRetryTimes    = 100
+	MaxRetryInterval = 30000
+)
 
 //var RootUserEmail = ""
 

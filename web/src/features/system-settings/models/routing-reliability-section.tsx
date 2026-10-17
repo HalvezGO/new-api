@@ -21,7 +21,6 @@ import { useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import * as z from 'zod'
 
 import {
   Form,
@@ -56,87 +55,19 @@ import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
-
-const numericString = z.string().refine((value) => {
-  const trimmed = value.trim()
-  if (!trimmed) return true
-  return !Number.isNaN(Number(trimmed)) && Number(trimmed) >= 0
-}, 'Enter a non-negative number or leave empty')
-
-const channelTestModes = [
-  'scheduled_all',
-  'auto_ban_only',
-  'passive_recovery',
-] as const
-type ChannelTestMode = (typeof channelTestModes)[number]
-const MAX_CHANNEL_TEST_CONCURRENCY = 32
-
-const createRoutingReliabilitySchema = (
-  t: (key: string, options?: Record<string, unknown>) => string
-) =>
-  z
-    .object({
-      RetryTimes: z.coerce.number().min(0).max(10),
-      ChannelDisableThreshold: numericString,
-      AutomaticDisableChannelEnabled: z.boolean(),
-      AutomaticEnableChannelEnabled: z.boolean(),
-      AutomaticDisableKeywords: z.string(),
-      AutomaticDisableStatusCodes: z.string(),
-      AutomaticRetryStatusCodes: z.string(),
-      monitor_setting: z.object({
-        auto_test_channel_enabled: z.boolean(),
-        auto_test_channel_minutes: z.coerce
-          .number()
-          .int()
-          .min(1, t('Interval must be at least 1 minute')),
-        channel_test_concurrency: z.coerce
-          .number()
-          .int(t('Enter a positive integer'))
-          .min(1, t('Channel test concurrency must be between 1 and 32'))
-          .max(
-            MAX_CHANNEL_TEST_CONCURRENCY,
-            t('Channel test concurrency must be between 1 and 32')
-          ),
-        channel_test_mode: z.enum(channelTestModes),
-      }),
-    })
-    .superRefine((values, ctx) => {
-      const disableParsed = parseHttpStatusCodeRules(
-        values.AutomaticDisableStatusCodes
-      )
-      if (!disableParsed.ok) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['AutomaticDisableStatusCodes'],
-          message: t('Invalid status code rules: {{tokens}}', {
-            tokens: disableParsed.invalidTokens.join(', '),
-          }),
-        })
-      }
-
-      const retryParsed = parseHttpStatusCodeRules(
-        values.AutomaticRetryStatusCodes
-      )
-      if (!retryParsed.ok) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['AutomaticRetryStatusCodes'],
-          message: t('Invalid status code rules: {{tokens}}', {
-            tokens: retryParsed.invalidTokens.join(', '),
-          }),
-        })
-      }
-    })
-
-type RoutingReliabilitySchema = ReturnType<
-  typeof createRoutingReliabilitySchema
->
-type RoutingReliabilityFormValues = z.output<RoutingReliabilitySchema>
-type RoutingReliabilityFormInput = z.input<RoutingReliabilitySchema>
+import {
+  createRoutingReliabilitySchema,
+  MAX_CHANNEL_TEST_CONCURRENCY,
+  type ChannelTestMode,
+  type RoutingReliabilityFormInput,
+  type RoutingReliabilityFormValues,
+} from './routing-reliability-schema'
 
 type RoutingReliabilitySectionProps = {
   defaultValues: {
     RetryTimes: number
+    RetryInterval: number
+    RetryIntervalStatusCodes: string
     ChannelDisableThreshold: string
     AutomaticDisableChannelEnabled: boolean
     AutomaticEnableChannelEnabled: boolean
@@ -156,6 +87,8 @@ function normalizeLineEndings(value: string) {
 
 type NormalizedRoutingReliabilityValues = {
   RetryTimes: number
+  RetryInterval: number
+  RetryIntervalStatusCodes: string
   ChannelDisableThreshold: string
   AutomaticDisableChannelEnabled: boolean
   AutomaticEnableChannelEnabled: boolean
@@ -179,6 +112,8 @@ const buildFormDefaults = (
   defaults: RoutingReliabilitySectionProps['defaultValues']
 ): RoutingReliabilityFormInput => ({
   RetryTimes: defaults.RetryTimes ?? 0,
+  RetryInterval: defaults.RetryInterval ?? 0,
+  RetryIntervalStatusCodes: defaults.RetryIntervalStatusCodes ?? '',
   ChannelDisableThreshold: defaults.ChannelDisableThreshold ?? '',
   AutomaticDisableChannelEnabled: defaults.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
@@ -204,6 +139,10 @@ const normalizeDefaults = (
   defaults: RoutingReliabilitySectionProps['defaultValues']
 ): NormalizedRoutingReliabilityValues => ({
   RetryTimes: defaults.RetryTimes ?? 0,
+  RetryInterval: defaults.RetryInterval ?? 0,
+  RetryIntervalStatusCodes: parseHttpStatusCodeRules(
+    defaults.RetryIntervalStatusCodes ?? ''
+  ).normalized,
   ChannelDisableThreshold: (defaults.ChannelDisableThreshold ?? '').trim(),
   AutomaticDisableChannelEnabled: defaults.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
@@ -231,6 +170,10 @@ const normalizeFormValues = (
   values: RoutingReliabilityFormValues
 ): NormalizedRoutingReliabilityValues => ({
   RetryTimes: values.RetryTimes,
+  RetryInterval: values.RetryInterval,
+  RetryIntervalStatusCodes: parseHttpStatusCodeRules(
+    values.RetryIntervalStatusCodes
+  ).normalized,
   ChannelDisableThreshold: values.ChannelDisableThreshold.trim(),
   AutomaticDisableChannelEnabled: values.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: values.AutomaticEnableChannelEnabled,
@@ -280,6 +223,7 @@ export function RoutingReliabilitySection({
 
   const autoDisableStatusCodes = form.watch('AutomaticDisableStatusCodes')
   const autoRetryStatusCodes = form.watch('AutomaticRetryStatusCodes')
+  const retryIntervalStatusCodes = form.watch('RetryIntervalStatusCodes')
   const channelTestMode = form.watch('monitor_setting.channel_test_mode')
   let channelTestModeDescription: string
   switch (channelTestMode) {
@@ -305,6 +249,10 @@ export function RoutingReliabilitySection({
   const autoRetryParsed = useMemo(
     () => parseHttpStatusCodeRules(autoRetryStatusCodes),
     [autoRetryStatusCodes]
+  )
+  const retryIntervalParsed = useMemo(
+    () => parseHttpStatusCodeRules(retryIntervalStatusCodes),
+    [retryIntervalStatusCodes]
   )
 
   const onSubmit = async (values: RoutingReliabilityFormValues) => {
@@ -353,12 +301,12 @@ export function RoutingReliabilitySection({
                       <Input
                         type='number'
                         min='0'
-                        max='10'
+                        max='100'
                         {...safeNumberFieldProps(field)}
                       />
                     </FormControl>
                     <FormDescription>
-                      {t('Number of times to retry failed requests (0-10)')}
+                      {t('Number of times to retry failed requests (0-100)')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -387,6 +335,64 @@ export function RoutingReliabilitySection({
                         autoRetryParsed.normalized !== field.value.trim() && (
                           <span className='text-muted-foreground'>
                             {t('Normalized:')} {autoRetryParsed.normalized}
+                          </span>
+                        )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='RetryInterval'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Retry Interval')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min='0'
+                        max='30000'
+                        {...safeNumberFieldProps(field)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='RetryIntervalStatusCodes'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Retry interval status codes')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t('e.g. 401, 403, 429, 500-599')}
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Accepts comma-separated status codes and inclusive ranges.'
+                      )}{' '}
+                      {t(
+                        'The retry interval is applied when the previous failure matches one of these codes.'
+                      )}{' '}
+                      {retryIntervalParsed.ok &&
+                        retryIntervalParsed.normalized &&
+                        retryIntervalParsed.normalized !==
+                          field.value.trim() && (
+                          <span className='text-muted-foreground'>
+                            {t('Normalized:')} {retryIntervalParsed.normalized}
                           </span>
                         )}
                     </FormDescription>
