@@ -45,6 +45,8 @@ import type { UsageLog } from '../../data/schema'
 import {
   formatModelName,
   getTieredBillingSummary,
+  getTokensPerSecond,
+  getTokensPerSecondAfterFirstToken,
   hasAnyCacheTokens,
   parseLogOther,
   isViolationFeeLog,
@@ -627,15 +629,22 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
 
         const useTime = row.getValue('use_time') as number
         const other = parseLogOther(log.other)
-        const tokensPerSecond =
-          useTime > 0 && log.completion_tokens > 0
-            ? log.completion_tokens / useTime
-            : null
+        const tokensPerSecond = getTokensPerSecond(
+          log.completion_tokens,
+          useTime
+        )
+        const tokensPerSecondAfterFirstToken =
+          getTokensPerSecondAfterFirstToken(
+            log.completion_tokens,
+            useTime,
+            other?.frt
+          )
 
         return (
           <StreamTpsCell
             isStream={log.is_stream}
             tokensPerSecond={tokensPerSecond}
+            tokensPerSecondAfterFirstToken={tokensPerSecondAfterFirstToken}
             streamStatus={other?.stream_status}
           />
         )

@@ -152,6 +152,12 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
 interface StreamTpsCellProps {
   isStream: boolean
   tokensPerSecond?: number | null
+  /**
+   * Throughput over the generation window only (total duration minus the
+   * first-token wait). Rendered in parentheses after the overall TPS so the
+   * list keeps both the end-to-end and the post-first-token view.
+   */
+  tokensPerSecondAfterFirstToken?: number | null
   streamStatus?: LogOtherData['stream_status']
   className?: string
 }
@@ -160,10 +166,13 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
   const { t } = useTranslation()
   const showStreamError =
     props.isStream && props.streamStatus && props.streamStatus.status !== 'ok'
-  const tpsLabel =
-    props.tokensPerSecond != null
-      ? `${Math.round(props.tokensPerSecond)} t/s`
-      : '—'
+  let tpsLabel = '—'
+  if (props.tokensPerSecond != null) {
+    tpsLabel = `${Math.round(props.tokensPerSecond)} t/s`
+    if (props.tokensPerSecondAfterFirstToken != null) {
+      tpsLabel = `${tpsLabel} (${Math.round(props.tokensPerSecondAfterFirstToken)} t/s)`
+    }
+  }
   const streamLabel = props.isStream ? t('Stream') : t('Non-stream')
 
   return (

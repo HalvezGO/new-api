@@ -220,6 +220,36 @@ export function getThroughputColor(
 }
 
 /**
+ * Average output throughput over the whole request, including the wait for
+ * the first token. This is the base TPS shown in the usage log list.
+ */
+export function getTokensPerSecond(
+  completionTokens: number,
+  useTimeSec: number
+): number | null {
+  if (useTimeSec <= 0 || completionTokens <= 0) return null
+  return completionTokens / useTimeSec
+}
+
+/**
+ * Average output throughput over the generation window only (total duration
+ * minus the first-token wait). Returns null when the first-token time is
+ * unknown or leaves no positive generation window, so callers can omit the
+ * parenthesized value instead of dividing by zero.
+ */
+export function getTokensPerSecondAfterFirstToken(
+  completionTokens: number,
+  useTimeSec: number,
+  firstTokenMs?: number | null
+): number | null {
+  if (completionTokens <= 0) return null
+  if (firstTokenMs == null || firstTokenMs <= 0) return null
+  const generationSec = useTimeSec - firstTokenMs / 1000
+  if (generationSec <= 0) return null
+  return completionTokens / generationSec
+}
+
+/**
  * Get response color using throughput only when enough output tokens exist.
  */
 export function getResponseTimeColor(
