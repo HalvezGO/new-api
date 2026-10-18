@@ -75,6 +75,22 @@ type ChannelMeta struct {
 	SupportStreamOptions bool // 是否支持流式选项
 }
 
+// MaxRetryFailureRecords caps how many per-attempt failure summaries are folded
+// into a single request's consume log row.
+const MaxRetryFailureRecords = 20
+
+// RetryFailureRecord is one failed channel attempt of a request, stored on the
+// request's consume log row (other.retry_failures) instead of its own error log.
+type RetryFailureRecord struct {
+	RetryIndex  int    `json:"retry_index"`
+	ChannelId   int    `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	StatusCode  int    `json:"status_code"`
+	ErrorCode   string `json:"error_code"`
+	Reason      string `json:"reason"`
+	WaitedMs    int    `json:"waited_ms"`
+}
+
 type TokenCountMeta struct {
 	//promptTokens int
 	estimatePromptTokens int
@@ -148,6 +164,21 @@ type RelayInfo struct {
 	RuntimeHeadersOverride                map[string]interface{}
 	UseRuntimeHeadersOverride             bool
 	ParamOverrideAudit                    []string
+
+	// ConsumeLogId is the in-progress consume log row written when this request
+	// entered the relay pipeline; 0 when no pending row exists. The settlement
+	// and failure paths finalize this row in place so one request keeps exactly
+	// one log line no matter how many channel attempts it made.
+	ConsumeLogId int
+	// ConsumeLogFinalized guards against double finalization (success settle
+	// and the deferred failure path can both run for one request).
+	ConsumeLogFinalized bool
+	// ConsumeLogRetryFailures accumulates per-attempt failure summaries that are
+	// folded into the row at finalization instead of one error-log row each.
+	ConsumeLogRetryFailures          []RetryFailureRecord
+	ConsumeLogRetryFailuresTruncated bool
+	// LastRetryWaitMs is the interval waited before the most recent retry.
+	LastRetryWaitMs int
 
 	PriceData hosttypes.PriceData
 

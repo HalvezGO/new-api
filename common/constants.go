@@ -141,6 +141,18 @@ const (
 	MaxRetryInterval = 30000
 )
 
+// InProgressLogEnabled controls whether requests write an in-progress consume
+// log row when they enter the relay pipeline (finalized in place at settle).
+// Default on; LogConsumeEnabled must also be on, and ClickHouse log databases
+// disable the feature entirely (see docs/superpowers/specs/2026-10-18-in-progress-consume-log-design.md).
+var InProgressLogEnabled = true
+
+// InProgressLogSweepAfterSeconds bounds how long an in-progress row may stay
+// unfinished before the master node marks it timed out. Generous: it must exceed
+// any legitimate request duration, and a swept row still finalizes via the
+// fallback insert so accounting is never lost.
+const InProgressLogSweepAfterSeconds = 43200
+
 //var RootUserEmail = ""
 
 var IsMasterNode bool

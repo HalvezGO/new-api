@@ -161,6 +161,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	// common.SetContextKey(c, constant.ContextKeyTokenCountMeta, meta)
 
+	// In-progress consume log row: written before billing so free-model requests
+	// and paid ones alike get a row; failures before this point (auth, rate
+	// limit, pricing) keep today's no-row behavior.
+	relayInfo.ConsumeLogId = service.RecordPendingConsumeLog(c, relayInfo)
+
 	if priceData.FreeModel {
 		logger.LogInfo(c, fmt.Sprintf("模型 %s 免费，跳过预扣费", relayInfo.OriginModelName))
 	} else {
@@ -177,6 +182,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			if relayInfo.Billing != nil {
 				relayInfo.Billing.Refund(c)
 			}
+			service.MarkConsumeLogFailed(c, relayInfo, newAPIError)
 			service.ChargeViolationFeeIfNeeded(c, relayInfo, newAPIError)
 		}
 	}()
