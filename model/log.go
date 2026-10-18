@@ -397,20 +397,145 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
-	if common.DataExportEnabled {
-		LogQuotaData(QuotaDataLogParams{
-			UserID:    userId,
-			Username:  username,
-			ModelName: params.ModelName,
-			Quota:     params.Quota,
-			CreatedAt: createdAt,
-			TokenUsed: params.PromptTokens + params.CompletionTokens,
-			UseGroup:  params.Group,
-			TokenID:   params.TokenId,
-			ChannelID: params.ChannelId,
-			NodeName:  common.NodeName,
-		})
+	exportConsumeLogQuotaData(userId, username, params, createdAt)
+}
+
+// exportConsumeLogQuotaData pushes one finalized consume row into the external
+// data export pipeline. Shared by the insert path and the in-place finalize
+// path so a pending row never exports twice and a migrated row exports exactly
+// once, when its final values exist.
+func exportConsumeLogQuotaData(userId int, username string, params RecordConsumeLogParams, createdAt int64) {
+	if !common.DataExportEnabled {
+		return
 	}
+	LogQuotaData(QuotaDataLogParams{
+		UserID:    userId,
+		Username:  username,
+		ModelName: params.ModelName,
+		Quota:     params.Quota,
+		CreatedAt: createdAt,
+		TokenUsed: params.PromptTokens + params.CompletionTokens,
+		UseGroup:  params.Group,
+		TokenID:   params.TokenId,
+		ChannelID: params.ChannelId,
+		NodeName:  common.NodeName,
+	})
+}
+
+// RecordPendingConsumeLog inserts the in-progress placeholder row written when a
+// request enters the relay pipeline. Billing/token fields are forced to zero;
+// the caller's params only supply identity fields (user, token, model, group,
+// stream flag, other). Returns the new row id, or 0 when the write failed.
+func RecordPendingConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) (int, error) {
+	if !common.LogConsumeEnabled {
+		return 0, nil
+	}
+	logger.LogInfo(c, fmt.Sprintf("record pending consume log: userId=%d, params=%s", userId, common.GetJsonString(params)))
+	username := c.GetString("username")
+	requestId := c.GetString(common.RequestIdKey)
+	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	createdAt := common.GetTimestamp()
+	needRecordIp := false
+	if settingMap, err := GetUserSetting(userId, false); err == nil {
+		needRecordIp = settingMap.RecordIpLog
+	}
+	log := &Log{
+		UserId:           userId,
+		Username:         username,
+		CreatedAt:        createdAt,
+		Type:             LogTypeConsume,
+		Status:           LogStatusInProgress,
+		Content:          "",
+		ModelName:        params.ModelName,
+		TokenName:        params.TokenName,
+		TokenId:          params.TokenId,
+		Group:            params.Group,
+		IsStream:         params.IsStream,
+		ChannelId:        params.ChannelId,
+		PromptTokens:     0,
+		CompletionTokens: 0,
+		Quota:            0,
+		UseTime:          0,
+		Ip: func() string {
+			if needRecordIp {
+				return c.ClientIP()
+			}
+			return ""
+		}(),
+		RequestId:         requestId,
+		UpstreamRequestId: upstreamRequestId,
+		Other:             common.MapToJsonStr(params.Other),
+	}
+	ensureLogRequestId(log)
+	if err := LOG_DB.Create(log).Error; err != nil {
+		logger.LogError(c, "failed to record pending log: "+err.Error())
+		return 0, err
+	}
+	return log.Id, nil
+}
+
+// UpdateConsumeLogFinal finalizes a pending row with its settled values. The
+// `status = 1` guard makes double finalization (success + failure paths racing,
+// or a stale sweep) a no-op. Returns whether the row was updated; the caller
+// falls back to inserting a fresh completed row when it was not.
+func UpdateConsumeLogFinal(c *gin.Context, id int, params RecordConsumeLogParams) (bool, error) {
+	updates := map[string]interface{}{
+		"status":            LogStatusCompleted,
+		"channel_id":        params.ChannelId,
+		"model_name":        params.ModelName,
+		"token_name":        params.TokenName,
+		"token_id":          params.TokenId,
+		"group":             params.Group,
+		"content":           params.Content,
+		"prompt_tokens":     params.PromptTokens,
+		"completion_tokens": params.CompletionTokens,
+		"quota":             params.Quota,
+		"use_time":          params.UseTimeSeconds,
+		"is_stream":         params.IsStream,
+		"other":             common.MapToJsonStr(params.Other),
+	}
+	result := LOG_DB.Model(&Log{}).Where("id = ? AND status = ?", id, LogStatusInProgress).Updates(updates)
+	if result.Error != nil {
+		logger.LogError(c, "failed to finalize pending log: "+result.Error.Error())
+		return false, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return false, nil
+	}
+	username := c.GetString("username")
+	exportConsumeLogQuotaData(0, username, params, common.GetTimestamp())
+	return true, nil
+}
+
+// UpdateConsumeLogFailed finalizes a pending row as failed. Tokens and quota stay
+// zero; only lifecycle/ownership fields and other are written.
+func UpdateConsumeLogFailed(c *gin.Context, id int, useTimeSeconds int, channelId int, other map[string]interface{}) (bool, error) {
+	updates := map[string]interface{}{
+		"status":     LogStatusFailed,
+		"use_time":   useTimeSeconds,
+		"channel_id": channelId,
+		"other":      common.MapToJsonStr(other),
+	}
+	result := LOG_DB.Model(&Log{}).Where("id = ? AND status = ?", id, LogStatusInProgress).Updates(updates)
+	if result.Error != nil {
+		logger.LogError(c, "failed to mark pending log failed: "+result.Error.Error())
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
+// SweepStaleInProgressLogs marks in-progress rows older than beforeUnix as timed
+// out. Runs on the master node only and is the crash-recovery net for rows whose
+// serving node died mid-request (a later settle falls back to a fresh insert,
+// so accounting is never lost).
+func SweepStaleInProgressLogs(beforeUnix int64) (int64, error) {
+	result := LOG_DB.Model(&Log{}).
+		Where("type = ? AND status = ? AND created_at < ?", LogTypeConsume, LogStatusInProgress, beforeUnix).
+		Update("status", LogStatusTimeout)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
 }
 
 type RecordTaskBillingLogParams struct {
