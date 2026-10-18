@@ -32,13 +32,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
+import {
+  LOG_STATUS_ALL_VALUE,
+  LOG_STATUS_FILTERS,
+  LOG_TYPE_ALL_VALUE,
+  LOG_TYPE_FILTERS,
+} from '../constants'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
@@ -77,6 +83,14 @@ function getLogTypeValue(value: unknown): LogTypeValue {
     : LOG_TYPE_ALL_VALUE
 }
 
+/** Map the URL status search value to its numeric log-status filter. */
+function getLogStatusValue(value: unknown): number {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (raw == null || raw === '') return LOG_STATUS_ALL_VALUE
+  const status = Number(raw)
+  return Number.isFinite(status) ? status : LOG_STATUS_ALL_VALUE
+}
+
 function buildSearchSourceKey(values: {
   startTime?: unknown
   endTime?: unknown
@@ -88,6 +102,7 @@ function buildSearchSourceKey(values: {
   requestId?: unknown
   upstreamRequestId?: unknown
   type?: unknown
+  status?: unknown
 }) {
   return [
     values.startTime,
@@ -100,6 +115,7 @@ function buildSearchSourceKey(values: {
     values.requestId,
     values.upstreamRequestId,
     Array.isArray(values.type) ? values.type.join(',') : values.type,
+    String(values.status ?? ''),
   ]
     .map((value) => String(value ?? ''))
     .join('\u001f')
@@ -107,6 +123,9 @@ function buildSearchSourceKey(values: {
 
 interface CommonLogsFilterBarProps<TData> {
   table: Table<TData>
+  /** Auto-refresh toggle state (owned by the logs table's query). */
+  autoRefresh: boolean
+  onAutoRefreshChange: (value: boolean) => void
 }
 
 export function CommonLogsFilterBar<TData>(
@@ -133,6 +152,7 @@ export function CommonLogsFilterBar<TData>(
       requestId: searchParams.requestId,
       upstreamRequestId: searchParams.upstreamRequestId,
       type: searchParams.type,
+      status: searchParams.status,
     }
     const filters: CommonLogFilters = {
       startTime: searchParams.startTime
@@ -146,6 +166,7 @@ export function CommonLogsFilterBar<TData>(
       username: searchParams.username || undefined,
       requestId: searchParams.requestId || undefined,
       upstreamRequestId: searchParams.upstreamRequestId || undefined,
+      status: getLogStatusValue(searchParams.status),
     }
     return {
       sourceKey: buildSearchSourceKey(sourceValues),
@@ -163,6 +184,7 @@ export function CommonLogsFilterBar<TData>(
     searchParams.requestId,
     searchParams.upstreamRequestId,
     searchParams.type,
+    searchParams.status,
   ])
   const [draft, setDraft] = useState<CommonLogDraft>(() => searchState)
   const activeDraft =
@@ -171,7 +193,10 @@ export function CommonLogsFilterBar<TData>(
   const logType = activeDraft.logType
 
   const handleChange = useCallback(
-    (field: keyof CommonLogFilters, value: Date | string | undefined) => {
+    (
+      field: keyof CommonLogFilters,
+      value: Date | string | number | undefined
+    ) => {
       setDraft((current) => {
         const base =
           current.sourceKey === searchState.sourceKey ? current : searchState
@@ -192,6 +217,10 @@ export function CommonLogsFilterBar<TData>(
       params: { section: 'common' },
       search: {
         ...filterParams,
+        status:
+          filters.status === undefined
+            ? String(LOG_STATUS_ALL_VALUE)
+            : String(filters.status),
         type: [logType],
         page: 1,
       },
@@ -205,6 +234,7 @@ export function CommonLogsFilterBar<TData>(
     const resetFilters: CommonLogFilters = { startTime: start, endTime: end }
     const resetSearch = {
       type: [LOG_TYPE_ALL_VALUE],
+      status: String(LOG_STATUS_ALL_VALUE),
       startTime: start.getTime(),
       endTime: end.getTime(),
     }
@@ -262,6 +292,18 @@ export function CommonLogsFilterBar<TData>(
   )
   const logTypeLabel =
     logTypeItems.find((type) => type.value === logType)?.label ?? t('All Types')
+  const logStatusItems = useMemo(
+    () =>
+      LOG_STATUS_FILTERS.map((status) => ({
+        value: status.value,
+        label: t(status.label),
+      })),
+    [t]
+  )
+  const logStatus = filters.status ?? LOG_STATUS_ALL_VALUE
+  const logStatusLabel =
+    logStatusItems.find((status) => status.value === String(logStatus))
+      ?.label ?? t('All statuses')
 
   const statsBar = (
     <div className='flex flex-wrap items-center gap-2'>
@@ -287,6 +329,16 @@ export function CommonLogsFilterBar<TData>(
         {sensitiveVisible ? t('Hide') : t('Show')}
       </TooltipContent>
     </Tooltip>
+  )
+  const autoRefreshToggle = (
+    <label className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+      <Switch
+        checked={props.autoRefresh}
+        onCheckedChange={(checked) => props.onAutoRefreshChange(checked)}
+        aria-label={t('Auto refresh')}
+      />
+      {t('Auto refresh')}
+    </label>
   )
 
   const dateRangeFilter = (
@@ -358,6 +410,34 @@ export function CommonLogsFilterBar<TData>(
       </Select>
     </LogsFilterField>
   )
+  const statusFilter = (
+    <LogsFilterField>
+      <Select
+        items={logStatusItems}
+        value={String(logStatus)}
+        onValueChange={(value) => {
+          const nextStatus =
+            value !== null && value !== ''
+              ? Number(value)
+              : LOG_STATUS_ALL_VALUE
+          handleChange('status', nextStatus)
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue>{logStatusLabel}</SelectValue>
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false}>
+          <SelectGroup>
+            {LOG_STATUS_FILTERS.map((status) => (
+              <SelectItem key={status.value} value={status.value}>
+                {t(status.label)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </LogsFilterField>
+  )
   const advancedFilters = (
     <>
       <LogsFilterField>
@@ -413,13 +493,19 @@ export function CommonLogsFilterBar<TData>(
     <LogsFilterToolbar
       table={props.table}
       stats={statsBar}
-      actionStart={sensitiveToggle}
+      actionStart={
+        <>
+          {autoRefreshToggle}
+          {sensitiveToggle}
+        </>
+      }
       primaryFilters={
         <>
           {dateRangeFilter}
           {modelFilter}
           {groupFilter}
           {typeFilter}
+          {statusFilter}
         </>
       }
       advancedFilters={advancedFilters}
@@ -429,12 +515,18 @@ export function CommonLogsFilterBar<TData>(
           {modelFilter}
           {groupFilter}
           {typeFilter}
+          {statusFilter}
           {advancedFilters}
         </>
       }
       mobileFilterCount={
-        [filters.model, filters.group, hasTypeFilter].filter(Boolean).length +
-        expandedFilterCount
+        [
+          filters.model,
+          filters.group,
+          hasTypeFilter,
+          filters.status !== undefined &&
+            filters.status !== LOG_STATUS_ALL_VALUE,
+        ].filter(Boolean).length + expandedFilterCount
       }
       hasAdvancedActiveFilters={hasExpandedFilters}
       advancedFilterCount={expandedFilterCount}

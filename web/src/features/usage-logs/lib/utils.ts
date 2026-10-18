@@ -200,6 +200,9 @@ export function buildApiParams(config: {
     p: page,
     page_size: pageSize,
     ...(searchParams.type ? { type: processType(searchParams.type) } : {}),
+    ...(searchParams.status !== undefined && searchParams.status !== ''
+      ? { status: Number(searchParams.status) }
+      : {}),
     ...(searchParams.model ? { model_name: String(searchParams.model) } : {}),
     ...(searchParams.token ? { token_name: String(searchParams.token) } : {}),
     ...(searchParams.group ? { group: String(searchParams.group) } : {}),

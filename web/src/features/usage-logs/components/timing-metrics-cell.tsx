@@ -55,6 +55,11 @@ interface TimingMetricsCellProps {
   completionTokens: number
   frtMs?: number
   isStream: boolean
+  /**
+   * When true the request is still in flight: first-token and duration show
+   * placeholders instead of values that do not exist yet.
+   */
+  isPending?: boolean
   className?: string
   /**
    * `bar` (default) draws a full-height color segment beside the labels,
@@ -79,9 +84,15 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
     props.useTimeSec,
     props.completionTokens
   )
-  const firstTokenLabel =
-    firstTokenSeconds == null ? t('N/A') : formatUseTime(firstTokenSeconds)
-  const totalTimeLabel = formatUseTime(props.useTimeSec)
+  let firstTokenLabel: string
+  if (props.isPending) {
+    firstTokenLabel = '—'
+  } else if (firstTokenSeconds == null) {
+    firstTokenLabel = t('N/A')
+  } else {
+    firstTokenLabel = formatUseTime(firstTokenSeconds)
+  }
+  const totalTimeLabel = props.isPending ? '—' : formatUseTime(props.useTimeSec)
 
   const labels = (
     <div className='flex min-h-8 min-w-0 flex-col justify-center gap-0.5 text-xs leading-tight'>
@@ -158,6 +169,12 @@ interface StreamTpsCellProps {
    * list keeps both the end-to-end and the post-first-token view.
    */
   tokensPerSecondAfterFirstToken?: number | null
+  /**
+   * Consume-log status: 1 renders the in-progress placeholder, 2 renders the
+   * failed badge, either of which replaces the throughput line.
+   */
+  status?: number
+  isPending?: boolean
   streamStatus?: LogOtherData['stream_status']
   className?: string
 }
@@ -166,14 +183,29 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
   const { t } = useTranslation()
   const showStreamError =
     props.isStream && props.streamStatus && props.streamStatus.status !== 'ok'
+  const isPending = props.isPending === true || props.status === 1
+  const isFailed = props.status === 2
+  let streamLabelTone = 'text-muted-foreground'
+  if (isPending) {
+    streamLabelTone = 'text-warning'
+  } else if (props.isStream) {
+    streamLabelTone = 'text-info'
+  }
   let tpsLabel = '—'
-  if (props.tokensPerSecond != null) {
-    tpsLabel = `${Math.round(props.tokensPerSecond)} t/s`
-    if (props.tokensPerSecondAfterFirstToken != null) {
-      tpsLabel = `${tpsLabel} (${Math.round(props.tokensPerSecondAfterFirstToken)} t/s)`
+  if (!isPending && !isFailed) {
+    if (props.tokensPerSecond != null) {
+      tpsLabel = `${Math.round(props.tokensPerSecond)} t/s`
+      if (props.tokensPerSecondAfterFirstToken != null) {
+        tpsLabel = `${tpsLabel} (${Math.round(props.tokensPerSecondAfterFirstToken)} t/s)`
+      }
     }
   }
-  const streamLabel = props.isStream ? t('Stream') : t('Non-stream')
+  let streamLabel = props.isStream ? t('Stream') : t('Non-stream')
+  if (isPending) {
+    streamLabel = t('In progress')
+  } else if (isFailed) {
+    streamLabel = t('Failed')
+  }
 
   return (
     <div
@@ -185,10 +217,16 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
       <span
         className={cn(
           'inline-flex items-center gap-1 font-medium',
-          props.isStream ? 'text-info' : 'text-muted-foreground'
+          streamLabelTone
         )}
       >
         {streamLabel}
+        {isPending && (
+          <span
+            aria-hidden
+            className='bg-warning size-1.5 shrink-0 animate-pulse rounded-full'
+          />
+        )}
         {showStreamError && (
           <TooltipProvider>
             <Tooltip>

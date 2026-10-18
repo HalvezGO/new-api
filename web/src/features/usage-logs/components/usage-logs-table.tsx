@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { type ColumnDef } from '@tanstack/react-table'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -33,6 +34,8 @@ import { cn } from '@/lib/utils'
 
 import {
   DEFAULT_LOGS_DATA,
+  LOG_STATUS_ALL_VALUE,
+  LOG_STATUS_ENUM,
   LOG_TYPE_ALL_VALUE,
   LOG_TYPE_ENUM,
 } from '../constants'
@@ -46,6 +49,10 @@ import { UsageLogsMobileList } from './usage-logs-mobile-card'
 import { useLogsViewScope } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
+
+// Auto-refresh interval for watching in-progress requests land. Only applied
+// when the status filter can show pending rows (see UsageLogsTable).
+const IN_PROGRESS_LOG_REFRESH_MS = 5000
 
 const logTypeRowTint: Record<number, string> = {
   [LOG_TYPE_ENUM.ERROR]: 'bg-rose-50/40 dark:bg-rose-950/20',
@@ -77,6 +84,17 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const { isAdminView: isAdmin } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
+  const [autoRefresh, setAutoRefresh] = useState(true)
+
+  // Watching in-progress rows land only makes sense while the current filter can
+  // show them: the "all" view or an explicit "In progress" selection.
+  const statusFilterValue = Number(searchParams.status)
+  const statusShowsInProgress =
+    !Number.isFinite(statusFilterValue) ||
+    statusFilterValue === LOG_STATUS_ALL_VALUE ||
+    statusFilterValue === LOG_STATUS_ENUM.IN_PROGRESS
+  const shouldWatchInProgress =
+    autoRefresh && logCategory === 'common' && statusShowsInProgress
 
   const {
     columnFilters,
@@ -150,6 +168,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       }
       return undefined
     },
+    refetchInterval: shouldWatchInProgress ? IN_PROGRESS_LOG_REFRESH_MS : false,
   })
 
   const logs = data?.items || []
@@ -200,7 +219,11 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       }
       toolbar={
         isCommon ? (
-          <CommonLogsFilterBar table={table} />
+          <CommonLogsFilterBar
+            table={table}
+            autoRefresh={autoRefresh}
+            onAutoRefreshChange={setAutoRefresh}
+          />
         ) : (
           <TaskLogsFilterBar table={table} logCategory={logCategory} />
         )

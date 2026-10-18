@@ -293,6 +293,7 @@ function MobileStreamTimingField({ log }: { log: UsageLog }) {
     useTime,
     other?.frt
   )
+  const isPending = log.status === 1
 
   return (
     <div className='bg-muted/20 flex min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5'>
@@ -301,6 +302,7 @@ function MobileStreamTimingField({ log }: { log: UsageLog }) {
         completionTokens={log.completion_tokens}
         frtMs={other?.frt}
         isStream={log.is_stream}
+        isPending={isPending}
         indicator='dot'
         className='min-w-0 flex-1'
       />
@@ -308,6 +310,8 @@ function MobileStreamTimingField({ log }: { log: UsageLog }) {
         isStream={log.is_stream}
         tokensPerSecond={tokensPerSecond}
         tokensPerSecondAfterFirstToken={tokensPerSecondAfterFirstToken}
+        status={log.status}
+        isPending={isPending}
         streamStatus={other?.stream_status}
         className='shrink-0'
       />

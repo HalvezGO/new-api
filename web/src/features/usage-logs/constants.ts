@@ -116,6 +116,38 @@ export const LOG_TYPE_FILTERS = [
 ] as const
 
 // ============================================================================
+// Consume Log Status
+// ============================================================================
+
+/**
+ * Consume log lifecycle status values (model.LogStatus*).
+ * 0=completed (also every legacy row), 1=in-progress, 2=failed, 3=timed-out.
+ */
+export const LOG_STATUS_ENUM = {
+  COMPLETED: 0,
+  IN_PROGRESS: 1,
+  FAILED: 2,
+  TIMEOUT: 3,
+} as const
+
+/** Sentinel: show rows of every status (the default "all" view). */
+export const LOG_STATUS_ALL_VALUE = -1 as const
+
+export const LOG_STATUS_FILTERS = [
+  { label: 'All statuses', value: String(LOG_STATUS_ALL_VALUE) },
+  {
+    label: 'Completed',
+    value: String(LOG_STATUS_ENUM.COMPLETED),
+  },
+  {
+    label: 'In progress',
+    value: String(LOG_STATUS_ENUM.IN_PROGRESS),
+  },
+  { label: 'Failed', value: String(LOG_STATUS_ENUM.FAILED) },
+  { label: 'Timed out', value: String(LOG_STATUS_ENUM.TIMEOUT) },
+] as const
+
+// ============================================================================
 // Drawing Logs (MjProxy) Constants
 // ============================================================================
 

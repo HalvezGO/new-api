@@ -639,12 +639,15 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             useTime,
             other?.frt
           )
+        const isPending = log.status === 1
 
         return (
           <StreamTpsCell
             isStream={log.is_stream}
             tokensPerSecond={tokensPerSecond}
             tokensPerSecondAfterFirstToken={tokensPerSecondAfterFirstToken}
+            status={log.status}
+            isPending={isPending}
             streamStatus={other?.stream_status}
           />
         )
@@ -662,6 +665,13 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
 
         const promptTokens = log.prompt_tokens || 0
         const completionTokens = log.completion_tokens || 0
+        if (log.status === 1) {
+          return (
+            <span className='text-muted-foreground text-xs tabular-nums'>
+              …
+            </span>
+          )
+        }
         if (promptTokens === 0 && completionTokens === 0) {
           return <span className='text-muted-foreground text-xs'>-</span>
         }
@@ -727,6 +737,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             completionTokens={log.completion_tokens}
             frtMs={other?.frt}
             isStream={log.is_stream}
+            isPending={log.status === 1}
           />
         )
       },

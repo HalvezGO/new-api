@@ -54,6 +54,11 @@ export interface CommonLogFilters extends CommonFilters {
   username?: string
   requestId?: string
   upstreamRequestId?: string
+  /**
+   * Consume log status filter: -1 means "all" (in-progress rows included),
+   * 0/1/2/3 select completed / in-progress / failed / timed-out rows.
+   */
+  status?: number
 }
 
 /**
@@ -111,6 +116,17 @@ export interface ToolSurchargeItem {
   name: string
   count: number
   price: number
+}
+
+/** One failed channel attempt folded into a request's consume log row. */
+export interface RetryFailureEntry {
+  retry_index: number
+  channel_id: number
+  channel_name?: string
+  status_code: number
+  error_code?: string
+  reason: string
+  waited_ms: number
 }
 
 export interface LogOtherData {
@@ -188,6 +204,13 @@ export interface LogOtherData {
   audio_ratio?: number
   audio_completion_ratio?: number
   frt?: number
+  /**
+   * Per-attempt failure summaries folded into this request's row when the
+   * in-progress consume log is enabled (see relaycommon.RetryFailureRecord).
+   */
+  retry_failures?: RetryFailureEntry[]
+  retry_failures_truncated?: boolean
+  failure_reason?: string
   // Tiered (expression-based) billing fields, set by backend when
   // billing_mode === 'tiered_expr'. expr_b64 is the base64-encoded billing
   // expression; the matched tier and request-rule traces come from the actual
@@ -324,6 +347,7 @@ export interface GetLogsParams {
   group?: string
   request_id?: string
   upstream_request_id?: string
+  status?: number
 }
 
 export interface GetLogsResponse {

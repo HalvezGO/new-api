@@ -605,6 +605,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const useChannel = other?.admin_info?.use_channel
   const channelChain =
     useChannel && useChannel.length > 0 ? useChannel.join(' → ') : undefined
+  const retryFailures = (other?.retry_failures ?? []).filter(Boolean)
   const reasoningEffortVariant = getReasoningEffortVariant(
     other?.reasoning_effort
   )
@@ -674,6 +675,41 @@ export function DetailsDialog(props: DetailsDialogProps) {
 
           {channelChain && props.isAdmin && (
             <DetailRow label={t('Retry Chain')} value={channelChain} mono />
+          )}
+
+          {other?.failure_reason && (
+            <DetailRow
+              label={t('Failure reason')}
+              value={other.failure_reason}
+              mono
+            />
+          )}
+
+          {retryFailures.length > 0 && (
+            <div className='space-y-1'>
+              <div className='text-muted-foreground text-xs'>
+                {t('Retry history')}
+                {other?.retry_failures_truncated ? '…' : ''}
+              </div>
+              <div className='space-y-0.5'>
+                {retryFailures.map((failure) => (
+                  <div
+                    key={`${failure.retry_index}-${failure.channel_id}`}
+                    className='text-muted-foreground/80 font-mono text-[11px] leading-snug'
+                  >
+                    #{failure.retry_index} · ch {failure.channel_id}
+                    {failure.channel_name
+                      ? ` (${failure.channel_name})`
+                      : ''} ·{' '}
+                    {failure.status_code}
+                    {failure.waited_ms
+                      ? ` · waited ${failure.waited_ms}ms`
+                      : ''}{' '}
+                    — {failure.reason}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {props.log.token_name && (

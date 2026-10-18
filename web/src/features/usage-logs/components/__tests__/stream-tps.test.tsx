@@ -53,4 +53,24 @@ describe('usage log stream TPS display', () => {
 
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  test('shows the in-progress state instead of throughput for a pending row', () => {
+    i18next.addResourceBundle('en', 'translation', {
+      'In progress': 'In progress',
+    })
+    render(<StreamTpsCell isStream isPending />)
+
+    expect(screen.getByText('In progress')).toBeInTheDocument()
+    expect(screen.queryByText(/t\/s/)).not.toBeInTheDocument()
+  })
+
+  test('shows the failure state instead of throughput for a failed row', () => {
+    i18next.addResourceBundle('en', 'translation', {
+      Failed: 'Failed',
+    })
+    render(<StreamTpsCell isStream status={2} />)
+
+    expect(screen.getByText('Failed')).toBeInTheDocument()
+    expect(screen.queryByText(/t\/s/)).not.toBeInTheDocument()
+  })
 })
