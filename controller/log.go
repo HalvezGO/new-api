@@ -10,6 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// parseLogStatusQuery reads the log status filter from the request. An absent or
+// empty value means "no filter" (-1) so the "all" view still shows in-progress
+// and failed rows; a positive value selects one consumption-log status.
+func parseLogStatusQuery(c *gin.Context) int {
+	raw := c.Query("status")
+	if raw == "" {
+		return -1
+	}
+	status, err := strconv.Atoi(raw)
+	if err != nil || status < 0 {
+		return -1
+	}
+	return status
+}
+
 func GetAllLogs(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	logType, _ := strconv.Atoi(c.Query("type"))
@@ -22,7 +37,8 @@ func GetAllLogs(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId)
+	logStatus := parseLogStatusQuery(c)
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, logStatus)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -44,7 +60,8 @@ func GetUserLogs(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
-	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId)
+	logStatus := parseLogStatusQuery(c)
+	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId, logStatus)
 	if err != nil {
 		common.ApiError(c, err)
 		return
