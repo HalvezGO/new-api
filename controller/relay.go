@@ -242,12 +242,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 		relayInfo.LastError = newAPIError
 
-		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
+		processChannelError(c, relayInfo, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
-		if !waitBeforeRetry(c, newAPIError.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
+		if !waitBeforeRetry(c, relayInfo, newAPIError.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
 	}
@@ -281,9 +281,12 @@ func addUsedChannel(c *gin.Context, channelId int) {
 // attempt when the failure status code is listed in the retry interval status
 // codes. It reports whether the caller should keep retrying: false means the
 // client disconnected during the wait and retrying would be pointless.
-func waitBeforeRetry(c *gin.Context, statusCode int, remainingRetry int) bool {
+func waitBeforeRetry(c *gin.Context, relayInfo *relaycommon.RelayInfo, statusCode int, remainingRetry int) bool {
 	if remainingRetry <= 0 || common.RetryInterval <= 0 || !operation_setting.ShouldUseRetryInterval(statusCode) {
 		return true
+	}
+	if relayInfo != nil {
+		relayInfo.LastRetryWaitMs = common.RetryInterval
 	}
 	logger.LogInfo(c, fmt.Sprintf("上游返回状态码 %d，等待 %dms 后重试（剩余重试次数 %d）", statusCode, common.RetryInterval, remainingRetry))
 	timer := time.NewTimer(time.Duration(common.RetryInterval) * time.Millisecond)
@@ -388,7 +391,7 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	return operation_setting.ShouldRetryByStatusCode(code)
 }
 
-func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
+func processChannelError(c *gin.Context, relayInfo *relaycommon.RelayInfo, channelError types.ChannelError, err *types.NewAPIError) {
 	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
@@ -399,6 +402,11 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 	}
 
 	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) {
+		// 有进行中的消耗日志行时，把这次失败尝试收进那一行，而不是每条尝试各写一条错误日志
+		if relayInfo != nil && relayInfo.ConsumeLogId > 0 && !relayInfo.ConsumeLogFinalized {
+			service.AppendRetryFailure(relayInfo, channelError, err)
+			return
+		}
 		// 保存错误日志到mysql中
 		userId := c.GetInt("id")
 		tokenName := c.GetString("token_name")
@@ -588,7 +596,7 @@ func RelayTask(c *gin.Context) {
 		}
 
 		if !taskErr.LocalError {
-			processChannelError(c,
+			processChannelError(c, relayInfo,
 				*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey,
 					common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()),
 				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode))
@@ -597,7 +605,7 @@ func RelayTask(c *gin.Context) {
 		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
-		if !waitBeforeRetry(c, taskErr.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
+		if !waitBeforeRetry(c, relayInfo, taskErr.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
 	}

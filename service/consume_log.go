@@ -118,6 +118,31 @@ func MarkConsumeLogFailed(c *gin.Context, relayInfo *relaycommon.RelayInfo, err 
 	}
 }
 
+// AppendRetryFailure records one failed channel attempt on the request's
+// consume-log row. Called in place of RecordErrorLog when a pending row exists,
+// so N retries never produce N extra log rows.
+func AppendRetryFailure(relayInfo *relaycommon.RelayInfo, channelError types.ChannelError, err *types.NewAPIError) {
+	if relayInfo == nil {
+		return
+	}
+	if len(relayInfo.ConsumeLogRetryFailures) >= relaycommon.MaxRetryFailureRecords {
+		relayInfo.ConsumeLogRetryFailuresTruncated = true
+		return
+	}
+	record := relaycommon.RetryFailureRecord{
+		RetryIndex:   relayInfo.RetryIndex,
+		ChannelId:    channelError.ChannelId,
+		ChannelName:  channelError.ChannelName,
+		WaitedMs:     relayInfo.LastRetryWaitMs,
+	}
+	if err != nil {
+		record.StatusCode = err.StatusCode
+		record.ErrorCode = string(err.GetErrorCode())
+		record.Reason = common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())
+	}
+	relayInfo.ConsumeLogRetryFailures = append(relayInfo.ConsumeLogRetryFailures, record)
+}
+
 // mergeRetryFailures folds accumulated per-attempt failure summaries into a log
 // row's other map. Failed attempts belong to the request, so they ride on the
 // single row instead of one error-log row each.
