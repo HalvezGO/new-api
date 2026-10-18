@@ -35,28 +35,28 @@ func TestWaitBeforeRetry(t *testing.T) {
 
 	t.Run("zero interval keeps the legacy zero-delay retry", func(t *testing.T) {
 		common.RetryInterval = 0
-		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), 429, 3))
+		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), nil, 429, 3))
 	})
 
 	t.Run("no remaining retries skips the wait", func(t *testing.T) {
 		common.RetryInterval = 10000
-		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), 429, 0))
+		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), nil, 429, 0))
 	})
 
 	t.Run("unlisted status code skips the wait", func(t *testing.T) {
 		common.RetryInterval = 10000
-		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), 500, 3))
+		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), nil, 500, 3))
 	})
 
 	t.Run("completed wait continues retrying", func(t *testing.T) {
 		common.RetryInterval = 1
-		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), 429, 3))
+		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), nil, 429, 3))
 	})
 
 	t.Run("cancelled client aborts the wait", func(t *testing.T) {
 		common.RetryInterval = 30000
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		require.False(t, waitBeforeRetry(newRetryIntervalTestContext(t, ctx), 429, 3))
+		require.False(t, waitBeforeRetry(newRetryIntervalTestContext(t, ctx), nil, 429, 3))
 	})
 }
