@@ -219,7 +219,13 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 
 `LOG_DB` 支持 ClickHouse（建表 DDL 在 `model/main.go` 的 `clickHouseLogCreateTableSQL`），其模型是 append-only 的列存：点更新要走 `ALTER TABLE logs UPDATE ...` 变异（mutation），和本功能"每请求一次点更新"的用法相性很差，且会显著拖慢 CH 集群。
 
-**决策（已定，方案 A）**：`common.UsingLogDatabase(common.DatabaseTypeClickHouse)` 为真时**整个功能禁用**（不插占位行、列表不过滤 status、错误日志保持逐条、前端状态筛选显示为不适用）。理由：CH 通常就是大规模场景，insert+update 写放大与点更新变异都不合其模型；这些部署保持今天的"结算时一条 + 逐条错误日志"行为。
+**决策（已定，方案 A）**：`common.UsingLogDatabase(common.DatabaseTypeClickHouse)` 为真时**整个功能禁用**（不插占位行、列表不过滤 status、错误日志保持逐条、前端状态筛选降级）。理由：CH 通常就是大规模场景，insert+update 写放大与点更新变异都不合其模型；这些部署保持今天的"结算时一条 + 逐条错误日志"行为。
+
+**实现要点（builder 复查补充）**：`model.Log` 加 `Status` 字段后，所有列表查询 `SELECT` 都会带上 `logs.status`，所以 CH 侧**必须**把列加上，否则 CH 部署的日志列表直接报错：
+
+- `clickHouseLogCreateTableSQL` 增 `status Int8 DEFAULT 0`；
+- `migrateClickHouseLogDB` 增 `LOG_DB.Exec("ALTER TABLE logs ADD COLUMN IF NOT EXISTS status Int8 DEFAULT 0")`（CH 元数据操作，轻量，存量表可用）；
+- `ShouldWriteInProgressLog()` 在 CH 下返回 false（不写 pending 行），其余行为完全保持现状。
 
 ## 13. 文件级改动清单（给 builder）
 
