@@ -121,7 +121,9 @@ export interface ToolSurchargeItem {
 /** One failed channel attempt folded into a request's consume log row. */
 export interface RetryFailureEntry {
   retry_index: number
-  channel_id: number
+  /** Stripped from user-facing payloads (admin-only channel identity). */
+  channel_id?: number
+  /** Stripped from user-facing payloads (admin-only channel identity). */
   channel_name?: string
   status_code: number
   error_code?: string

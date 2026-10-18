@@ -83,6 +83,7 @@ import {
   isTimingLogType,
 } from '../../lib/utils'
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
+import { RetryHistoryList } from '../retry-history-list'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
 // to its i18n label key for display in the audit details.
@@ -686,33 +687,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
           )}
 
           {retryFailures.length > 0 && (
-            <div className='space-y-1'>
-              <div className='text-muted-foreground text-xs'>
-                {t('Retry history')} ·{' '}
-                {t('Retried {{count}} attempts', {
-                  count: retryFailures.length,
-                })}
-                {other?.retry_failures_truncated ? '…' : ''}
-              </div>
-              <div className='space-y-0.5'>
-                {retryFailures.map((failure) => (
-                  <div
-                    key={`${failure.retry_index}-${failure.channel_id}`}
-                    className='text-muted-foreground/80 font-mono text-[11px] leading-snug'
-                  >
-                    #{failure.retry_index} · ch {failure.channel_id}
-                    {failure.channel_name
-                      ? ` (${failure.channel_name})`
-                      : ''} ·{' '}
-                    {failure.status_code}
-                    {failure.waited_ms
-                      ? ` · waited ${failure.waited_ms}ms`
-                      : ''}{' '}
-                    — {failure.reason}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <RetryHistoryList
+              failures={retryFailures}
+              truncated={other?.retry_failures_truncated}
+              isAdmin={props.isAdmin}
+            />
           )}
 
           {props.log.token_name && (
