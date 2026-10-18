@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,6 +57,47 @@ func TestRecordPendingConsumeLogDefaults(t *testing.T) {
 	assert.Contains(t, reloaded.Other, "\"in_progress\":true")
 }
 
+// The finalize export must be keyed by the request's user, not a placeholder,
+// otherwise per-user usage-data views (filtered on user_id) go empty.
+func TestUpdateConsumeLogFinalExportsQuotaDataWithUserId(t *testing.T) {
+	truncateTables(t)
+
+	prevExport := common.DataExportEnabled
+	t.Cleanup(func() { common.DataExportEnabled = prevExport })
+	common.DataExportEnabled = true
+
+	id, err := RecordPendingConsumeLog(testGinContext(), 7, pendingParams())
+	require.NoError(t, err)
+
+	// Isolate the export cache before finalizing so the assertion below sees
+	// exactly the row this test produces.
+	CacheQuotaDataLock.Lock()
+	CacheQuotaData = make(map[string]*QuotaData)
+	CacheQuotaDataLock.Unlock()
+
+	requestStart := time.Now().Add(-90 * time.Second).Unix()
+	updated, err := UpdateConsumeLogFinal(testGinContext(), 7, id, RecordConsumeLogParams{
+		ModelName:        "test-model",
+		Group:            "default",
+		Quota:            321,
+		PromptTokens:     10,
+		CompletionTokens: 5,
+		CreatedAt:        requestStart,
+		Other:            map[string]interface{}{},
+	})
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	SaveQuotaDataCache()
+
+	var exported []QuotaData
+	require.NoError(t, LOG_DB.Where("model_name = ?", "test-model").Find(&exported).Error)
+	require.Len(t, exported, 1)
+	assert.Equal(t, 7, exported[0].UserID)
+	assert.Equal(t, requestStart-requestStart%3600, exported[0].CreatedAt)
+	assert.Equal(t, 321, exported[0].Quota)
+}
+
 func TestUpdateConsumeLogFinalGuard(t *testing.T) {
 	truncateTables(t)
 
@@ -74,7 +116,7 @@ func TestUpdateConsumeLogFinalGuard(t *testing.T) {
 		IsStream:         true,
 		Group:            "default",
 	}
-	updated, err := UpdateConsumeLogFinal(testGinContext(), id, finalParams)
+	updated, err := UpdateConsumeLogFinal(testGinContext(), 1, id, finalParams)
 	require.NoError(t, err)
 	assert.True(t, updated)
 
@@ -88,7 +130,7 @@ func TestUpdateConsumeLogFinalGuard(t *testing.T) {
 	assert.Equal(t, 7, reloaded.ChannelId)
 
 	// A second finalize (both success and failure paths raced) must be a no-op.
-	updated, err = UpdateConsumeLogFinal(testGinContext(), id, finalParams)
+	updated, err = UpdateConsumeLogFinal(testGinContext(), 1, id, finalParams)
 	require.NoError(t, err)
 	assert.False(t, updated)
 	require.NoError(t, LOG_DB.First(&reloaded, id).Error)
@@ -99,7 +141,7 @@ func TestUpdateConsumeLogFinalGuard(t *testing.T) {
 func TestUpdateConsumeLogFinalMissingRowReturnsFalse(t *testing.T) {
 	truncateTables(t)
 
-	updated, err := UpdateConsumeLogFinal(testGinContext(), 424242, RecordConsumeLogParams{Quota: 10})
+	updated, err := UpdateConsumeLogFinal(testGinContext(), 1, 424242, RecordConsumeLogParams{Quota: 10})
 	require.NoError(t, err)
 	assert.False(t, updated)
 }
@@ -144,7 +186,7 @@ func TestSweepStaleInProgressLogsOnlyStalePending(t *testing.T) {
 
 	completed, err := RecordPendingConsumeLog(testGinContext(), 3, pendingParams())
 	require.NoError(t, err)
-	updated, err := UpdateConsumeLogFinal(testGinContext(), completed, RecordConsumeLogParams{Quota: 1})
+	updated, err := UpdateConsumeLogFinal(testGinContext(), 3, completed, RecordConsumeLogParams{Quota: 1})
 	require.NoError(t, err)
 	require.True(t, updated)
 	require.NoError(t, LOG_DB.Model(&Log{}).Where("id = ?", completed).

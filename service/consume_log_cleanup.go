@@ -28,6 +28,10 @@ func StartInProgressLogCleanup() {
 }
 
 func sweepStaleInProgressLogs() {
+	// ClickHouse has no UPDATE statement; the feature is disabled there anyway.
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		return
+	}
 	before := time.Now().Add(-time.Duration(common.InProgressLogSweepAfterSeconds) * time.Second).Unix()
 	swept, err := model.SweepStaleInProgressLogs(before)
 	if err != nil {

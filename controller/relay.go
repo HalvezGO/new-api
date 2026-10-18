@@ -171,6 +171,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	} else {
 		newAPIError = service.PreConsumeBilling(c, priceData.QuotaToPreConsume, relayInfo)
 		if newAPIError != nil {
+			// Finalize the pending row before returning: the deferred failure
+			// handler below is only registered after this branch, and a row left
+			// in-progress here would hang as "In progress" until the sweep.
+			service.MarkConsumeLogFailed(c, relayInfo, newAPIError)
 			return
 		}
 	}

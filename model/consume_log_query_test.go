@@ -17,7 +17,7 @@ func TestGetUserLogsStatusFilter(t *testing.T) {
 
 	completedId, err := RecordPendingConsumeLog(testGinContext(), 1, RecordConsumeLogParams{ModelName: "m2"})
 	require.NoError(t, err)
-	updated, err := UpdateConsumeLogFinal(testGinContext(), completedId, RecordConsumeLogParams{
+	updated, err := UpdateConsumeLogFinal(testGinContext(), 1, completedId, RecordConsumeLogParams{
 		ModelName: "m2",
 		Quota:     10,
 		Other:     map[string]interface{}{},
@@ -52,7 +52,7 @@ func TestSumUsedQuotaExcludesNonFinalLogs(t *testing.T) {
 
 	completedId, err := RecordPendingConsumeLog(testGinContext(), 1, RecordConsumeLogParams{ModelName: "m2", Group: "default"})
 	require.NoError(t, err)
-	updated, err := UpdateConsumeLogFinal(testGinContext(), completedId, RecordConsumeLogParams{
+	updated, err := UpdateConsumeLogFinal(testGinContext(), 1, completedId, RecordConsumeLogParams{
 		ModelName: "m2",
 		Group:     "default",
 		Quota:     100,

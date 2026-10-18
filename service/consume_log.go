@@ -47,6 +47,12 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 		ChannelId: relayInfo.ChannelId,
 		Other: map[string]interface{}{
 			"in_progress": true,
+			"request_path": func() string {
+				if c != nil && c.Request != nil && c.Request.URL != nil {
+					return c.Request.URL.Path
+				}
+				return ""
+			}(),
 		},
 	})
 	if err != nil {
@@ -69,8 +75,9 @@ func finalizeConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo, userId
 		model.RecordConsumeLog(c, userId, params)
 		return
 	}
+	params.CreatedAt = relayInfo.StartTime.Unix()
 	relayInfo.ConsumeLogFinalized = true
-	updated, err := model.UpdateConsumeLogFinal(c, relayInfo.ConsumeLogId, params)
+	updated, err := model.UpdateConsumeLogFinal(c, userId, relayInfo.ConsumeLogId, params)
 	if err == nil && updated {
 		return
 	}
@@ -83,6 +90,37 @@ func finalizeConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo, userId
 		))
 	}
 	model.RecordConsumeLog(c, userId, params)
+}
+
+// buildFailedLogOther assembles the other payload for a failed pending row:
+// request path, the per-attempt retry history, the last failure reason, and the
+// channel chain (admin-only) so the row stays as informative as the error logs
+// it replaced.
+func buildFailedLogOther(c *gin.Context, relayInfo *relaycommon.RelayInfo, err *types.NewAPIError) map[string]interface{} {
+	other := map[string]interface{}{
+		"in_progress": false,
+	}
+	if c != nil && c.Request != nil && c.Request.URL != nil && c.Request.URL.Path != "" {
+		other["request_path"] = c.Request.URL.Path
+	}
+	mergeRetryFailures(other, relayInfo)
+	if c != nil {
+		if useChannel := c.GetStringSlice("use_channel"); len(useChannel) > 0 {
+			other["admin_info"] = map[string]interface{}{
+				"use_channel":    useChannel,
+				"retry_attempts": len(useChannel),
+			}
+		}
+	}
+	if len(relayInfo.ConsumeLogRetryFailures) > 0 {
+		last := relayInfo.ConsumeLogRetryFailures[len(relayInfo.ConsumeLogRetryFailures)-1]
+		other["failure_reason"] = last.Reason
+		return other
+	}
+	if err != nil {
+		other["failure_reason"] = common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())
+	}
+	return other
 }
 
 // MarkConsumeLogFailed finalizes the request's pending row as failed. Called
@@ -99,21 +137,7 @@ func MarkConsumeLogFailed(c *gin.Context, relayInfo *relaycommon.RelayInfo, err 
 	if !startTime.IsZero() {
 		useTimeSeconds = int(time.Since(startTime).Seconds())
 	}
-	other := map[string]interface{}{
-		"in_progress": false,
-	}
-	mergeRetryFailures(other, relayInfo)
-	if len(relayInfo.ConsumeLogRetryFailures) > 0 {
-		last := relayInfo.ConsumeLogRetryFailures[len(relayInfo.ConsumeLogRetryFailures)-1]
-		other["failure_reason"] = last.Reason
-		other["admin_info"] = map[string]interface{}{
-			"retry_attempts": last.RetryIndex + 1,
-		}
-	} else if err != nil {
-		other["failure_reason"] = common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())
-	}
-
-	if _, updateErr := model.UpdateConsumeLogFailed(c, relayInfo.ConsumeLogId, useTimeSeconds, relayInfo.ChannelId, other); updateErr != nil {
+	if _, updateErr := model.UpdateConsumeLogFailed(c, relayInfo.ConsumeLogId, useTimeSeconds, relayInfo.ChannelId, buildFailedLogOther(c, relayInfo, err)); updateErr != nil {
 		common.SysLog("mark pending consume log failed: " + updateErr.Error())
 	}
 }
@@ -130,10 +154,10 @@ func AppendRetryFailure(relayInfo *relaycommon.RelayInfo, channelError types.Cha
 		return
 	}
 	record := relaycommon.RetryFailureRecord{
-		RetryIndex:   relayInfo.RetryIndex,
-		ChannelId:    channelError.ChannelId,
-		ChannelName:  channelError.ChannelName,
-		WaitedMs:     relayInfo.LastRetryWaitMs,
+		RetryIndex:  relayInfo.RetryIndex,
+		ChannelId:   channelError.ChannelId,
+		ChannelName: channelError.ChannelName,
+		WaitedMs:    relayInfo.LastRetryWaitMs,
 	}
 	if err != nil {
 		record.StatusCode = err.StatusCode
@@ -145,7 +169,8 @@ func AppendRetryFailure(relayInfo *relaycommon.RelayInfo, channelError types.Cha
 
 // mergeRetryFailures folds accumulated per-attempt failure summaries into a log
 // row's other map. Failed attempts belong to the request, so they ride on the
-// single row instead of one error-log row each.
+// single row instead of one error-log row each. It also stamps the retry
+// attempt count so the logs list can show a "retried N" marker on the row.
 func mergeRetryFailures(other map[string]interface{}, relayInfo *relaycommon.RelayInfo) {
 	if other == nil || relayInfo == nil || len(relayInfo.ConsumeLogRetryFailures) == 0 {
 		return
@@ -153,6 +178,15 @@ func mergeRetryFailures(other map[string]interface{}, relayInfo *relaycommon.Rel
 	other["retry_failures"] = relayInfo.ConsumeLogRetryFailures
 	if relayInfo.ConsumeLogRetryFailuresTruncated {
 		other["retry_failures_truncated"] = true
+	}
+	attempts := relayInfo.ConsumeLogRetryFailures[len(relayInfo.ConsumeLogRetryFailures)-1].RetryIndex + 1
+	if attempts > 1 {
+		adminInfo, ok := other["admin_info"].(map[string]interface{})
+		if !ok || adminInfo == nil {
+			adminInfo = map[string]interface{}{}
+			other["admin_info"] = adminInfo
+		}
+		adminInfo["retry_attempts"] = attempts
 	}
 	logger.LogDebug(nil, fmt.Sprintf("merged %d retry failures into consume log", len(relayInfo.ConsumeLogRetryFailures)))
 }

@@ -688,7 +688,10 @@ export function DetailsDialog(props: DetailsDialogProps) {
           {retryFailures.length > 0 && (
             <div className='space-y-1'>
               <div className='text-muted-foreground text-xs'>
-                {t('Retry history')}
+                {t('Retry history')} ·{' '}
+                {t('Retried {{count}} attempts', {
+                  count: retryFailures.length,
+                })}
                 {other?.retry_failures_truncated ? '…' : ''}
               </div>
               <div className='space-y-0.5'>

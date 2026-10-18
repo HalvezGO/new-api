@@ -348,6 +348,10 @@ type RecordConsumeLogParams struct {
 	IsStream         bool                   `json:"is_stream"`
 	Group            string                 `json:"group"`
 	Other            map[string]interface{} `json:"other"`
+	// CreatedAt is the request-start time used when exporting quota data from
+	// an in-place finalized row, so the export lands in the request's hour
+	// bucket. Unset (0) falls back to now.
+	CreatedAt int64 `json:"created_at"`
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
@@ -478,7 +482,7 @@ func RecordPendingConsumeLog(c *gin.Context, userId int, params RecordConsumeLog
 // `status = 1` guard makes double finalization (success + failure paths racing,
 // or a stale sweep) a no-op. Returns whether the row was updated; the caller
 // falls back to inserting a fresh completed row when it was not.
-func UpdateConsumeLogFinal(c *gin.Context, id int, params RecordConsumeLogParams) (bool, error) {
+func UpdateConsumeLogFinal(c *gin.Context, userId int, id int, params RecordConsumeLogParams) (bool, error) {
 	updates := map[string]interface{}{
 		"status":            LogStatusCompleted,
 		"channel_id":        params.ChannelId,
@@ -503,8 +507,18 @@ func UpdateConsumeLogFinal(c *gin.Context, id int, params RecordConsumeLogParams
 		return false, nil
 	}
 	username := c.GetString("username")
-	exportConsumeLogQuotaData(0, username, params, common.GetTimestamp())
+	exportConsumeLogQuotaData(userId, username, params, exportCreatedAt(params))
 	return true, nil
+}
+
+// exportCreatedAt prefers the request-start time carried on the params so an
+// exported row lands in the same hour bucket as the request that produced it;
+// falls back to now when the caller did not provide one.
+func exportCreatedAt(params RecordConsumeLogParams) int64 {
+	if params.CreatedAt > 0 {
+		return params.CreatedAt
+	}
+	return common.GetTimestamp()
 }
 
 // UpdateConsumeLogFailed finalizes a pending row as failed. Tokens and quota stay
