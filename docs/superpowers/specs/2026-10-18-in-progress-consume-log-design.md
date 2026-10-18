@@ -23,7 +23,7 @@
 ## 2. 目标
 
 1. 预扣费成功后立刻落库一行 `status=请求中`；请求结束时（成功或失败）原地更新为精准终值（`status=已完成` 或 `status=失败`）。
-2. 一次请求无论多少次渠道重试/重试间隔等待，消耗日志始终只有一行；`other` 中记录 `use_channel` 列表与重试次数。
+2. 一次请求无论多少次渠道重试/重试间隔等待，消耗日志始终只有一行；`other.admin_info` 中记录 `use_channel` 列表与重试次数，`other.retry_failures` 记录每次失败尝试的脱敏摘要（错误日志不再按尝试逐条写，见 §7.5）。
 3. 前端支持按状态筛选（全部 / 已完成 / 请求中 / 失败 / 已超时），请求中态使用占位展示，并提供自动刷新。
 4. 存量日志与统计口径不受影响：`status=0`（默认值）表示"已完成/存量行"，所有聚合只统计 `status=0`。
 5. 节点崩溃或多节点部署下残留的"请求中"行，由 master 定期兜底标记为"已超时"。
@@ -32,7 +32,7 @@
 
 - 流式中途的增量更新（用户明确不做）。
 - 任务类端点（`RelayTask` / MJ）本期不做。
-- 错误日志（每次失败一条）本期保持现状，是否收敛见 §11 遗留问题。
+- 错误日志按请求收敛已在本期范围内（见 §7.5）；**预-Relay 阶段的错误日志**（鉴权、限流、参数校验等）保持今天的逐条行为。
 - 不改预扣费/退还/结算等计费语义。
 
 ## 4. 反目标（Anti-goals）
@@ -44,6 +44,7 @@
 ## 5. 约束
 
 - 三库兼容（SQLite / MySQL >= 5.7.8 / PostgreSQL >= 9.6）；SQLite 迁移用 `ALTER TABLE ... ADD COLUMN`，照 `model/main.go` 既有迁移模式。
+- ClickHouse 日志库上整个功能禁用（见 §12）。
 - status 用 `int` + 显式赋值，不用 GORM 布尔类默认值 tag 导致反复 ALTER（遵循 AGENTS.md）。
 - 不新增 status 索引：清理按 `created_at` 过滤、筛选查询已有 `created_at`/`user_id` 索引覆盖（实现时用 EXPLAIN 复核，若证据不足再加）。
 - 写放大：每请求 insert + update 两次写。提供开关可关，并让部署者知情。
@@ -142,6 +143,23 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 - 预扣费成功后、首个渠道都没选到的失败（如"分组下无可用渠道"）也会留下 `status=失败` 行（这正是新增的可观测性）。
 - Playground 请求同样有占位行（与现有消耗日志行为一致）。
 
+### 7.5 每次失败尝试的错误日志收敛（已决策：收敛）
+
+现状：`controller/relay.go` 的 `processChannelError` 对每个失败尝试写一条 `type=5` 错误日志（`model.RecordErrorLog`），所以 N 次失败 = N 条错误日志。
+
+新规则：
+
+- **有 pending 行时**（`relayInfo.ConsumeLogId > 0 && !relayInfo.ConsumeLogFinalized`）：不再写 `type=5` 行，改为 `service.AppendRetryFailure(relayInfo, channelError, err)` 累积到 `relayInfo.ConsumeLogRetryFailures[]`，条目：`{retry_index, channel_id, channel_name, status_code, error_code, reason（脱敏短错误，与现有错误日志同掩码口径）, waited_ms（本次重试前等待的间隔，0 表示无）}`。
+- **终值化时**把列表落进同一行：成功走 `PostTextConsumeQuota`/`PostWssConsumeQuota`/`PostAudioConsumeQuota` 的 `finalizeConsumeLog`（写入 `other.retry_failures`），失败走 `MarkConsumeLogFailed`（写入 `other.retry_failures` + `other.failure_reason`=最后一条）。成功但有重试的行同样展示重试链路（这正是用户最关心的可见性）。
+- **无 pending 行时**（开关关闭、ClickHouse、插行失败、预扣费前失败、Realtime）保持今天的逐条错误日志，一行不改。
+- `constant.ErrorLogEnabled` 仍是总开关：关闭时既不写错误日志也不累积（与今天语义一致）。
+- `types.IsRecordErrorLog(err)` 的豁免同样适用于累积（与今天的错误日志口径一致）。
+- 渠道自动禁用（`ShouldDisableChannel` → `DisableChannel`）逻辑不受影响，继续在 `processChannelError` 内异步执行。
+- 可见性：`retry_failures` 放 `other` 顶层（脱敏文案与客户端实际收到的错误一致，对请求归属用户可见，非敏感）；展示在详情弹窗。
+- 规模保护：最多累积 20 条，超出置 `other.retry_failures_truncated=true`。
+- 实现时 `rg "RecordErrorLog"` 复核唯一调用点是 `processChannelError`；channel-test 等旁路不变。
+- 前端：详情弹窗渲染 `retry_failures`（重试序号/渠道/状态码/原因/等待）；列表行在 `admin_info.retry_attempts > 1` 时于渠道列显示"重试 N 次"小标。
+
 ### 7.3 兜底清理
 
 - 新建 `service/consume_log_cleanup.go`：`StartInProgressLogCleanup()`，完全镜像 `service/auth_cleanup.go` 的 `StartAuthArtifactCleanup`（master only、启动即执行一次 + 定时器）。
@@ -175,6 +193,7 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 - `model`：`RecordPendingConsumeLog` 默认字段（status=1、quota/tokens/use_time=0、other.in_progress）；`UpdateConsumeLog` 更新语义与 `WHERE status=1` 守卫（对已完成行重复更新不生效）；`RowsAffected=0` 回退插入；`SweepStaleInProgressLogs` 只清超时 pending 行、不动其他行。
 - `service`：`finalizeConsumeLog`（有 id → 更新；无 id → 走原插入）；`MarkConsumeLogFailed` 幂等（重复调用不二次更新）。
 - 聚合口径：存在 pending/failed 行时统计接口不把它们计入（覆盖 §7.4 的回归）。
+- 错误日志收敛：有 pending 行且重试 1 次时，`logs` 表中该请求只有 1 行（消耗）且 `other.retry_failures` 有 1 条；无 pending 行（插行失败/开关关闭）时错误日志仍按尝试逐条；`retry_failures` 超 20 条置 truncated；`ErrorLogEnabled=false` 两者都不写。
 - 使用仓库既有 model 测试夹具初始化数据库。
 
 前端：
@@ -191,21 +210,18 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 - 免费模型（`priceData.FreeModel`）同样有占位行（插入点在分支之前，见 §7.2）。
 - OpenAI Realtime（WSS）不插占位行，行为与今天一致。
 
-## 11. 遗留问题（待用户确认）
+## 11. 已决策事项
 
-- 错误日志（每次失败一条，`type=5`）是否也按请求收敛（例如把每个失败尝试汇入 `other.retry_failures`）？本次不做；确认后可在同一行内展示完整重试链路，进一步降低日志量。
-- ClickHouse 日志库是否在 v1 支持（见 §12）？
+- **ClickHouse 日志库**：`common.UsingLogDatabase(common.DatabaseTypeClickHouse)` 为真时整个功能禁用（不插占位行、`RecordErrorLog` 保持逐条、列表不过滤 status、前端状态筛选降级）。理由：CH 为 append-only 列存，点更新需变异 SQL，与"每请求一次点更新"相性差；这类部署保持今天的"结算时一条"行为。
+- **错误日志按请求收敛**：见 §7.5。一次请求的每次失败尝试不再各写一条 `type=5` 错误日志，而是汇入该请求那一行的 `other.retry_failures`。
 
 ## 12. ClickHouse 日志库
 
 `LOG_DB` 支持 ClickHouse（建表 DDL 在 `model/main.go` 的 `clickHouseLogCreateTableSQL`），其模型是 append-only 的列存：点更新要走 `ALTER TABLE logs UPDATE ...` 变异（mutation），和本功能"每请求一次点更新"的用法相性很差，且会显著拖慢 CH 集群。
 
-待用户决策（倾向方案 A）：
+**决策（已定，方案 A）**：`common.UsingLogDatabase(common.DatabaseTypeClickHouse)` 为真时**整个功能禁用**（不插占位行、列表不过滤 status、错误日志保持逐条、前端状态筛选显示为不适用）。理由：CH 通常就是大规模场景，insert+update 写放大与点更新变异都不合其模型；这些部署保持今天的"结算时一条 + 逐条错误日志"行为。
 
-- **A（建议）**：`common.UsingLogDatabase(common.DatabaseTypeClickHouse)` 为真时**整个功能禁用**（不插占位行、列表不过滤 status、前端状态筛选显示为不适用）。理由：CH 通常就是大规模场景，insert+update 写放大与点更新变异都不合其模型；这些部署保持今天的"结算时一条"行为。
-- B：完整支持：DDL 加列 + 存量迁移 + `UpdateConsumeLog`/`SweepStaleInProgressLogs` 的 CH 分支（mutation 版 SQL），并验证 AutoMigrate 在该驱动下确实加列。
-
-## 12. 文件级改动清单（给 builder）
+## 13. 文件级改动清单（给 builder）
 
 后端：
 
@@ -214,16 +230,16 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 - `model/log.go`：`Status` 字段、status 常量、`RecordPendingConsumeLog`、`UpdateConsumeLog`、`SweepStaleInProgressLogs`。
 - `model/main.go`：迁移。
 - `model/option.go`：默认导出 + case。
-- `relay/common/relay_info.go`：`ConsumeLogId`/`ConsumeLogFinalized` 字段。
-- `service/consume_log.go`（新）：`RecordPendingConsumeLog`、`finalizeConsumeLog`、`MarkConsumeLogFailed`。
+- `relay/common/relay_info.go`：`ConsumeLogId`/`ConsumeLogFinalized`/`ConsumeLogRetryFailures` 字段。
+- `service/consume_log.go`（新）：`RecordPendingConsumeLog`、`finalizeConsumeLog`、`MarkConsumeLogFailed`、`AppendRetryFailure`。
 - `service/consume_log_cleanup.go`（新）：`StartInProgressLogCleanup`。
 - `service/text_quota.go`、`service/quota.go`：结算点改走 `finalizeConsumeLog`。
-- `controller/relay.go`：插入 + defer 失败终值化。
+- `controller/relay.go`：插入 + defer 失败终值化 + `processChannelError` 错误日志收敛（§7.5）。
 - 日志聚合查询（rg 枚举）补 `status=0`；列表查询补 `status` 过滤参数（controller + model）。
 - 测试（§9）。
 
 前端：
 
-- `features/usage-logs/data/schema.ts`、筛选栏、三个单元格组件、详情弹窗、移动端卡片、自动刷新开关。
+- `features/usage-logs/data/schema.ts`、筛选栏、三个单元格组件、详情弹窗（含 `retry_failures` 渲染与"重试 N 次"小标）、移动端卡片、自动刷新开关。
 - `features/system-settings`：`types.ts`、`defaults`、`operations/log-settings-section.tsx`（镜像 LogConsumeEnabled）、注册表。
 - i18n 7 语言 + 新测试。
