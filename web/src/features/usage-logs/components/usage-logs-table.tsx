@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { type ColumnDef } from '@tanstack/react-table'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -39,6 +39,7 @@ import {
   LOG_TYPE_ALL_VALUE,
   LOG_TYPE_ENUM,
 } from '../constants'
+import { clampAutoRefreshSeconds } from '../lib/auto-refresh'
 import { useColumnsByCategory } from '../lib/columns'
 import { parseLogOther } from '../lib/format'
 import { fetchLogsByCategory } from '../lib/utils'
@@ -50,9 +51,13 @@ import { useLogsViewScope } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
 
-// Auto-refresh interval for watching in-progress requests land. Only applied
-// when the status filter can show pending rows (see UsageLogsTable).
-const IN_PROGRESS_LOG_REFRESH_MS = 5000
+const AUTO_REFRESH_INTERVAL_STORAGE_KEY = 'usage-logs:auto-refresh-seconds'
+
+function readStoredAutoRefreshSeconds(): number {
+  return clampAutoRefreshSeconds(
+    window.localStorage.getItem(AUTO_REFRESH_INTERVAL_STORAGE_KEY)
+  )
+}
 
 const logTypeRowTint: Record<number, string> = {
   [LOG_TYPE_ENUM.ERROR]: 'bg-rose-50/40 dark:bg-rose-950/20',
@@ -85,6 +90,18 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [refreshSeconds, setRefreshSeconds] = useState(
+    readStoredAutoRefreshSeconds
+  )
+
+  const handleRefreshSecondsChange = useCallback((seconds: number) => {
+    const clamped = clampAutoRefreshSeconds(seconds)
+    setRefreshSeconds(clamped)
+    window.localStorage.setItem(
+      AUTO_REFRESH_INTERVAL_STORAGE_KEY,
+      String(clamped)
+    )
+  }, [])
 
   // Watching in-progress rows land only makes sense while the current filter can
   // show them: the "all" view or an explicit "In progress" selection.
@@ -168,7 +185,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       }
       return undefined
     },
-    refetchInterval: shouldWatchInProgress ? IN_PROGRESS_LOG_REFRESH_MS : false,
+    refetchInterval: shouldWatchInProgress ? refreshSeconds * 1000 : false,
   })
 
   const logs = data?.items || []
@@ -223,6 +240,8 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
             table={table}
             autoRefresh={autoRefresh}
             onAutoRefreshChange={setAutoRefresh}
+            refreshSeconds={refreshSeconds}
+            onRefreshSecondsChange={handleRefreshSecondsChange}
           />
         ) : (
           <TaskLogsFilterBar table={table} logCategory={logCategory} />

@@ -24,6 +24,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -45,6 +46,10 @@ import {
   LOG_TYPE_ALL_VALUE,
   LOG_TYPE_FILTERS,
 } from '../constants'
+import {
+  AUTO_REFRESH_MAX_SECONDS,
+  AUTO_REFRESH_MIN_SECONDS,
+} from '../lib/auto-refresh'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
@@ -126,6 +131,9 @@ interface CommonLogsFilterBarProps<TData> {
   /** Auto-refresh toggle state (owned by the logs table's query). */
   autoRefresh: boolean
   onAutoRefreshChange: (value: boolean) => void
+  /** Auto-refresh interval in seconds (clamped by the caller). */
+  refreshSeconds: number
+  onRefreshSecondsChange: (seconds: number) => void
 }
 
 export function CommonLogsFilterBar<TData>(
@@ -331,14 +339,28 @@ export function CommonLogsFilterBar<TData>(
     </Tooltip>
   )
   const autoRefreshToggle = (
-    <label className='text-muted-foreground flex items-center gap-1.5 text-xs'>
-      <Switch
-        checked={props.autoRefresh}
-        onCheckedChange={(checked) => props.onAutoRefreshChange(checked)}
-        aria-label={t('Auto refresh')}
+    <div className='flex items-center gap-1.5'>
+      <label className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+        <Switch
+          checked={props.autoRefresh}
+          onCheckedChange={(checked) => props.onAutoRefreshChange(checked)}
+          aria-label={t('Auto refresh')}
+        />
+        {t('Auto refresh')}
+      </label>
+      <Input
+        type='number'
+        min={AUTO_REFRESH_MIN_SECONDS}
+        max={AUTO_REFRESH_MAX_SECONDS}
+        step={1}
+        value={props.refreshSeconds}
+        onChange={(e) => props.onRefreshSecondsChange(Number(e.target.value))}
+        disabled={!props.autoRefresh}
+        aria-label={t('Refresh interval')}
+        className='h-7 w-16 px-1.5 text-center text-xs tabular-nums'
       />
-      {t('Auto refresh')}
-    </label>
+      <span className='text-muted-foreground text-xs'>{t('seconds')}</span>
+    </div>
   )
 
   const dateRangeFilter = (
