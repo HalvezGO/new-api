@@ -408,6 +408,12 @@ func migrateClickHouseLogDB() error {
 	if err := LOG_DB.Exec(clickHouseLogCreateTableSQL(ttlDays)).Error; err != nil {
 		return err
 	}
+	// The in-progress consume log status column. Log.Status is selected by every
+	// log-list query, so existing ClickHouse tables must gain the column too;
+	// ADD COLUMN IF NOT EXISTS is a metadata-only operation on ClickHouse.
+	if err := LOG_DB.Exec("ALTER TABLE logs ADD COLUMN IF NOT EXISTS status Int8 DEFAULT 0").Error; err != nil {
+		return err
+	}
 	return syncClickHouseLogTTL(ttlDays)
 }
 
@@ -456,7 +462,8 @@ CREATE TABLE IF NOT EXISTS logs (
 	ip String DEFAULT '',
 	request_id String DEFAULT '',
 	upstream_request_id String DEFAULT '',
-	other String DEFAULT ''
+	other String DEFAULT '',
+	status Int8 DEFAULT 0
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(created_at))

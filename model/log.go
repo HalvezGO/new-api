@@ -78,6 +78,7 @@ type Log struct {
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
+	Status            int    `json:"status" gorm:"default:0"`
 }
 
 // don't use iota, avoid change log type value
@@ -90,6 +91,15 @@ const (
 	LogTypeError   = 5
 	LogTypeRefund  = 6
 	LogTypeLogin   = 7
+)
+
+// Consume log lifecycle status. 0 is the default so every pre-existing row
+// (and every row written outside the in-progress flow) reads as completed.
+const (
+	LogStatusCompleted  = 0
+	LogStatusInProgress = 1
+	LogStatusFailed     = 2
+	LogStatusTimeout    = 3
 )
 
 func ensureLogRequestId(log *Log) {
