@@ -44,7 +44,10 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 		TokenId:   relayInfo.TokenId,
 		Group:     relayInfo.UsingGroup,
 		IsStream:  relayInfo.IsStream,
-		ChannelId: relayInfo.ChannelId,
+		// No channel is selected yet (ChannelMeta is nil until InitChannelMeta
+		// runs in the handler), so use the nil-safe accessor: 0 means "settled
+		// later", and the finalize update writes the real channel id.
+		ChannelId: relayInfo.GetChannelID(),
 		Other: map[string]interface{}{
 			"in_progress": true,
 			"request_path": func() string {
@@ -137,7 +140,9 @@ func MarkConsumeLogFailed(c *gin.Context, relayInfo *relaycommon.RelayInfo, err 
 	if !startTime.IsZero() {
 		useTimeSeconds = int(time.Since(startTime).Seconds())
 	}
-	if _, updateErr := model.UpdateConsumeLogFailed(c, relayInfo.ConsumeLogId, useTimeSeconds, relayInfo.ChannelId, buildFailedLogOther(c, relayInfo, err)); updateErr != nil {
+	// A failure can land before any channel is selected, so ChannelMeta may
+	// still be nil here; the accessor returns 0 instead of panicking.
+	if _, updateErr := model.UpdateConsumeLogFailed(c, relayInfo.ConsumeLogId, useTimeSeconds, relayInfo.GetChannelID(), buildFailedLogOther(c, relayInfo, err)); updateErr != nil {
 		common.SysLog("mark pending consume log failed: " + updateErr.Error())
 	}
 }
