@@ -98,6 +98,50 @@ func TestUpdateConsumeLogFinalExportsQuotaDataWithUserId(t *testing.T) {
 	assert.Equal(t, 321, exported[0].Quota)
 }
 
+// The upstream request id is only learned once the request has actually
+// reached the upstream (relay/channel/api_request.go sets it from the response),
+// which is after the pending row was inserted. Finalizing in place must pick it
+// up, exactly like the plain insert path does, or the field is lost on every
+// completed request.
+func TestUpdateConsumeLogFinalCapturesUpstreamRequestId(t *testing.T) {
+	truncateTables(t)
+
+	c := testGinContext()
+	id, err := RecordPendingConsumeLog(c, 1, pendingParams())
+	require.NoError(t, err)
+
+	c.Set(common.UpstreamRequestIdKey, "upstream-abc")
+	updated, err := UpdateConsumeLogFinal(c, 1, id, RecordConsumeLogParams{
+		ModelName: "test-model",
+		Other:     map[string]interface{}{},
+	})
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	var reloaded Log
+	require.NoError(t, LOG_DB.First(&reloaded, id).Error)
+	assert.Equal(t, "upstream-abc", reloaded.UpstreamRequestId)
+}
+
+// Failures can happen after the upstream was reached too, so the failed path
+// records the same identifier.
+func TestUpdateConsumeLogFailedCapturesUpstreamRequestId(t *testing.T) {
+	truncateTables(t)
+
+	c := testGinContext()
+	id, err := RecordPendingConsumeLog(c, 1, pendingParams())
+	require.NoError(t, err)
+
+	c.Set(common.UpstreamRequestIdKey, "upstream-failed-abc")
+	updated, err := UpdateConsumeLogFailed(c, id, 3, 0, map[string]interface{}{})
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	var reloaded Log
+	require.NoError(t, LOG_DB.First(&reloaded, id).Error)
+	assert.Equal(t, "upstream-failed-abc", reloaded.UpstreamRequestId)
+}
+
 func TestUpdateConsumeLogFinalGuard(t *testing.T) {
 	truncateTables(t)
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -46,6 +47,17 @@ func TestWaitBeforeRetry(t *testing.T) {
 	t.Run("unlisted status code skips the wait", func(t *testing.T) {
 		common.RetryInterval = 10000
 		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), nil, 500, 3))
+	})
+
+	t.Run("skipped wait clears a previously recorded wait", func(t *testing.T) {
+		// A wait recorded before an earlier attempt must not survive a skipped
+		// wait, or the next failure summary claims a pause that never happened.
+		common.RetryInterval = 10000
+		relayInfo := &relaycommon.RelayInfo{}
+		relayInfo.LastRetryWaitMs = 5000
+
+		require.True(t, waitBeforeRetry(newRetryIntervalTestContext(t, nil), relayInfo, 500, 3))
+		require.Zero(t, relayInfo.LastRetryWaitMs)
 	})
 
 	t.Run("completed wait continues retrying", func(t *testing.T) {

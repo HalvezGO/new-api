@@ -286,6 +286,12 @@ func addUsedChannel(c *gin.Context, channelId int) {
 // codes. It reports whether the caller should keep retrying: false means the
 // client disconnected during the wait and retrying would be pointless.
 func waitBeforeRetry(c *gin.Context, relayInfo *relaycommon.RelayInfo, statusCode int, remainingRetry int) bool {
+	// Clear the previously recorded wait first: when this wait is skipped the
+	// stale value would otherwise be attributed to the next failed attempt in
+	// the request's retry history.
+	if relayInfo != nil {
+		relayInfo.LastRetryWaitMs = 0
+	}
 	if remainingRetry <= 0 || common.RetryInterval <= 0 || !operation_setting.ShouldUseRetryInterval(statusCode) {
 		return true
 	}

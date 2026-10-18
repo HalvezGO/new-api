@@ -135,6 +135,17 @@ func formatUserLogs(logs []*Log, startIdx int) {
 			delete(otherMap, "audit_info")
 			// delete(otherMap, "reject_reason")
 			// delete(otherMap, "stream_status")
+			// Failed attempts keep their reason but lose channel identity: the
+			// channel column (and ChannelName above) is admin-only, so leaving
+			// the per-attempt channel id/name in would leak it past that rule.
+			if failures, ok := otherMap["retry_failures"].([]interface{}); ok {
+				for _, raw := range failures {
+					if entry, ok := raw.(map[string]interface{}); ok {
+						delete(entry, "channel_id")
+						delete(entry, "channel_name")
+					}
+				}
+			}
 		}
 		logs[i].Other = common.MapToJsonStr(otherMap)
 	}
@@ -497,6 +508,10 @@ func UpdateConsumeLogFinal(c *gin.Context, userId int, id int, params RecordCons
 		"use_time":          params.UseTimeSeconds,
 		"is_stream":         params.IsStream,
 		"other":             common.MapToJsonStr(params.Other),
+		// The upstream id is only known after the request reached the upstream,
+		// i.e. after this row was inserted; read it at settle time like
+		// RecordConsumeLog does.
+		"upstream_request_id": c.GetString(common.UpstreamRequestIdKey),
 	}
 	result := LOG_DB.Model(&Log{}).Where("id = ? AND status = ?", id, LogStatusInProgress).Updates(updates)
 	if result.Error != nil {
@@ -529,6 +544,9 @@ func UpdateConsumeLogFailed(c *gin.Context, id int, useTimeSeconds int, channelI
 		"use_time":   useTimeSeconds,
 		"channel_id": channelId,
 		"other":      common.MapToJsonStr(other),
+		// Failures can happen after the upstream was reached, so the identifier
+		// is picked up here too (it is set after the pending row was written).
+		"upstream_request_id": c.GetString(common.UpstreamRequestIdKey),
 	}
 	result := LOG_DB.Model(&Log{}).Where("id = ? AND status = ?", id, LogStatusInProgress).Updates(updates)
 	if result.Error != nil {
