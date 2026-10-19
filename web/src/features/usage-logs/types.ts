@@ -213,6 +213,12 @@ export interface LogOtherData {
   retry_failures?: RetryFailureEntry[]
   retry_failures_truncated?: boolean
   failure_reason?: string
+  /**
+   * Set when the request failed because the client closed the connection
+   * before the response was delivered; the failure reason is then shown as a
+   * friendly "client disconnected" label instead of the raw error.
+   */
+  client_gone?: boolean
   // Tiered (expression-based) billing fields, set by backend when
   // billing_mode === 'tiered_expr'. expr_b64 is the base64-encoded billing
   // expression; the matched tier and request-rule traces come from the actual

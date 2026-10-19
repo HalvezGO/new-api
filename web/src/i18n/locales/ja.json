@@ -894,6 +894,7 @@
     "Click to view full error message": "クリックしてエラーメッセージ全文を表示",
     "Click to view full prompt": "クリックしてプロンプト全文を表示",
     "Click to view image": "クリックして画像を表示",
+    "Client disconnected": "クライアントが切断されました",
     "Client header value": "クライアントヘッダー値",
     "Client ID": "クライアントID",
     "Client model": "クライアント model",

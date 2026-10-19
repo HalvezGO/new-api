@@ -678,11 +678,15 @@ export function DetailsDialog(props: DetailsDialogProps) {
             <DetailRow label={t('Retry Chain')} value={channelChain} mono />
           )}
 
-          {other?.failure_reason && (
+          {(other?.failure_reason || other?.client_gone) && (
             <DetailRow
               label={t('Failure reason')}
-              value={other.failure_reason}
-              mono
+              value={
+                other?.client_gone
+                  ? t('Client disconnected')
+                  : other?.failure_reason
+              }
+              mono={!other?.client_gone}
             />
           )}
 
