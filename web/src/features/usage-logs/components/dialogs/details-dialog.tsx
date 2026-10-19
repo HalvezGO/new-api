@@ -607,6 +607,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const channelChain =
     useChannel && useChannel.length > 0 ? useChannel.join(' → ') : undefined
   const retryFailures = (other?.retry_failures ?? []).filter(Boolean)
+  // A stream cut short by the caller carries the client_gone marker; rows written
+  // before that marker existed only have the stream end reason, so both shapes
+  // are treated as the same outcome.
+  const clientGone =
+    other?.client_gone === true ||
+    other?.stream_status?.end_reason === 'client_gone'
   const reasoningEffortVariant = getReasoningEffortVariant(
     other?.reasoning_effort
   )
@@ -678,15 +684,13 @@ export function DetailsDialog(props: DetailsDialogProps) {
             <DetailRow label={t('Retry Chain')} value={channelChain} mono />
           )}
 
-          {(other?.failure_reason || other?.client_gone) && (
+          {(other?.failure_reason || clientGone) && (
             <DetailRow
               label={t('Failure reason')}
               value={
-                other?.client_gone
-                  ? t('Client disconnected')
-                  : other?.failure_reason
+                clientGone ? t('Client disconnected') : other?.failure_reason
               }
-              mono={!other?.client_gone}
+              mono={!clientGone}
             />
           )}
 

@@ -22,7 +22,7 @@ import { describe, expect, test } from 'vitest'
 import type { UsageLog } from '../../data/schema'
 import { DetailsDialog } from '../dialogs/details-dialog'
 
-function buildLog(other: Record<string, unknown>): UsageLog {
+function buildLog(other: Record<string, unknown>, isStream = false): UsageLog {
   return {
     id: 1,
     user_id: 1,
@@ -36,7 +36,7 @@ function buildLog(other: Record<string, unknown>): UsageLog {
     prompt_tokens: 12,
     completion_tokens: 0,
     use_time: 3,
-    is_stream: false,
+    is_stream: isStream,
     channel: 7,
     channel_name: 'test-channel',
     token_id: 1,
@@ -84,5 +84,19 @@ describe('usage log details dialog failure reason', () => {
       screen.getByText('status_code=503, upstream unavailable')
     ).toBeInTheDocument()
     expect(screen.queryByText('Client disconnected')).not.toBeInTheDocument()
+  })
+
+  test('marks a stream that ended because the client left the same way', () => {
+    renderDialog(
+      buildLog(
+        {
+          stream_status: { status: 'error', end_reason: 'client_gone' },
+        },
+        true
+      )
+    )
+
+    expect(screen.getByText('Client disconnected')).toBeInTheDocument()
+    expect(screen.getByText('Stream Status')).toBeInTheDocument()
   })
 })

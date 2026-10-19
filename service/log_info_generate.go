@@ -150,6 +150,12 @@ func appendStreamStatus(relayInfo *relaycommon.RelayInfo, other map[string]inter
 		streamInfo["errors"] = messages
 	}
 	other["stream_status"] = streamInfo
+	if ss.EndReason == relaycommon.StreamEndReasonClientGone {
+		// Same marker as a failed request that ended because the caller hung up:
+		// the stream row must be readable as "client gone", not as a provider
+		// problem. Non-stream rows get it from buildFailedLogOther.
+		other["client_gone"] = true
+	}
 }
 
 func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
