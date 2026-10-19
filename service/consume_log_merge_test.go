@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -59,6 +60,21 @@ func TestBuildFailedLogOtherWithoutRetries(t *testing.T) {
 	assert.Contains(t, other, "failure_reason")
 	assert.NotContains(t, other, "retry_failures")
 	assert.Contains(t, other, "request_path")
+}
+
+// A canceled client request must be distinguishable from an upstream failure in
+// the log row, so it is not read as a provider problem.
+func TestBuildFailedLogOtherMarksClientGone(t *testing.T) {
+	clientGoneErr := types.NewErrorWithStatusCode(
+		context.Canceled,
+		types.ErrorCodeDoRequestFailed,
+		500,
+	)
+
+	other := buildFailedLogOther(newStubContext(), &relaycommon.RelayInfo{}, clientGoneErr)
+
+	assert.Equal(t, true, other["client_gone"])
+	assert.Contains(t, other, "failure_reason")
 }
 
 func TestMergeRetryFailuresIntoOther(t *testing.T) {

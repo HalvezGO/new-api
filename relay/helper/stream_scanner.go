@@ -282,8 +282,14 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 
 		if err := scanner.Err(); err != nil {
 			if err != io.EOF {
-				logger.LogError(c, "scanner error: "+err.Error())
-				info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonScannerErr, err)
+				if ctxErr := c.Request.Context().Err(); ctxErr != nil {
+					// The read failed because the client hung up and the upstream
+					// request was canceled: report client-gone, not a scanner fault.
+					info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, ctxErr)
+				} else {
+					logger.LogError(c, "scanner error: "+err.Error())
+					info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonScannerErr, err)
+				}
 			}
 		}
 		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonEOF, nil)

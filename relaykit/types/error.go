@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +49,7 @@ const (
 	ErrorCodeInvalidApiType     ErrorCode = "invalid_api_type"
 	ErrorCodeJsonMarshalFailed  ErrorCode = "json_marshal_failed"
 	ErrorCodeDoRequestFailed    ErrorCode = "do_request_failed"
+	ErrorCodeClientGone         ErrorCode = "client_gone"
 	ErrorCodeGetChannelFailed   ErrorCode = "get_channel_failed"
 	ErrorCodeGenRelayInfoFailed ErrorCode = "gen_relay_info_failed"
 
@@ -414,4 +416,30 @@ func IsRecordErrorLog(e *NewAPIError) bool {
 		return true
 	}
 	return *e.recordErrorLog
+}
+
+// StatusClientClosedRequest is nginx's de-facto 499 status: the client closed
+// the connection before the server could send a response.
+const StatusClientClosedRequest = 499
+
+// NewClientGoneError marks err as "the client hung up mid-request". Such an
+// error is never retried, never recorded against the channel, and never logged
+// as an upstream error: the request has no receiver left.
+func NewClientGoneError(err error) *NewAPIError {
+	return NewErrorWithStatusCode(err, ErrorCodeClientGone, StatusClientClosedRequest,
+		ErrOptionWithSkipRetry(), ErrOptionWithNoRecordErrorLog())
+}
+
+// IsClientGone reports whether the error was caused by the client going away
+// (its request context was canceled). Such an error is not the channel's fault:
+// it must not be retried on another channel, must not disable the channel, and
+// must not be recorded as an upstream error log.
+func IsClientGone(e *NewAPIError) bool {
+	if e == nil {
+		return false
+	}
+	if e.errorCode == ErrorCodeClientGone {
+		return true
+	}
+	return errors.Is(e, context.Canceled)
 }

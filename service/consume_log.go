@@ -115,6 +115,13 @@ func buildFailedLogOther(c *gin.Context, relayInfo *relaycommon.RelayInfo, err *
 			}
 		}
 	}
+	if err != nil && types.IsClientGone(err) {
+		// The caller hung up: report that instead of the last upstream failure,
+		// so the row is not read as a provider problem.
+		other["client_gone"] = true
+		other["failure_reason"] = common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())
+		return other
+	}
 	if len(relayInfo.ConsumeLogRetryFailures) > 0 {
 		last := relayInfo.ConsumeLogRetryFailures[len(relayInfo.ConsumeLogRetryFailures)-1]
 		other["failure_reason"] = last.Reason

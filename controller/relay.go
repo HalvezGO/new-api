@@ -202,6 +202,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.LastError = nil
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+		// Check before every attempt, including the first: a client that already
+		// hung up must not cause a fresh upstream call.
+		if c.Request.Context().Err() != nil {
+			newAPIError = types.NewClientGoneError(c.Request.Context().Err())
+			logger.LogInfo(c, "client disconnected before retry attempt, stopping")
+			break
+		}
 		relayInfo.RetryIndex = retryParam.GetRetry()
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
@@ -261,7 +268,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
 		logger.LogInfo(c, retryLogStr)
 	}
-	if newAPIError != nil {
+	if newAPIError != nil && !types.IsClientGone(newAPIError) {
+		// A hung-up client says nothing about model availability: recording it
+		// would skew the per-model success rate.
 		gopool.Go(func() {
 			perfmetrics.RecordRelaySample(relayInfo, false, 0)
 		})
@@ -373,6 +382,11 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if openaiErr == nil {
 		return false
 	}
+	// The client is gone: another channel cannot deliver the response anywhere,
+	// and retrying would keep burning upstream tokens for a dead request.
+	if isClientGone(c, openaiErr) {
+		return false
+	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
 		return false
 	}
@@ -401,7 +415,27 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	return operation_setting.ShouldRetryByStatusCode(code)
 }
 
+// isClientGone reports whether this failure is just the client having hung up.
+// The upstream error is wrapped as do_request_failed with the context error, so
+// both the wrapped error and the request context are checked.
+func isClientGone(c *gin.Context, err *types.NewAPIError) bool {
+	if types.IsClientGone(err) {
+		return true
+	}
+	return c != nil && c.Request != nil && c.Request.Context().Err() != nil
+}
+
 func processChannelError(c *gin.Context, relayInfo *relaycommon.RelayInfo, channelError types.ChannelError, err *types.NewAPIError) {
+	// A client disconnect is not a channel failure: skip auto-ban and error logs,
+	// which would otherwise mark healthy channels bad and spam the log table.
+	if isClientGone(c, err) {
+		errPreview := ""
+		if err != nil {
+			errPreview = common.LocalLogPreview(err.Error())
+		}
+		logger.LogInfo(c, fmt.Sprintf("client disconnected, skipping channel error handling (channel #%d): %s", channelError.ChannelId, errPreview))
+		return
+	}
 	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
@@ -569,6 +603,14 @@ func RelayTask(c *gin.Context) {
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
 		var channel *model.Channel
+
+		// Same rule as the sync path: never start a new upstream attempt for a
+		// client that already hung up.
+		if c.Request.Context().Err() != nil {
+			taskErr = service.TaskErrorWrapperLocal(c.Request.Context().Err(), string(types.ErrorCodeClientGone), types.StatusClientClosedRequest)
+			logger.LogInfo(c, "client disconnected before retry attempt, stopping")
+			break
+		}
 
 		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
 			channel = lockedCh

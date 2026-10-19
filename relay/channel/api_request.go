@@ -310,6 +310,22 @@ func applyHeaderOverrideToRequest(req *http.Request, headerOverride map[string]s
 	}
 }
 
+// tieToClientContext ties an upstream call to the client's request context, so
+// a client that hangs up cancels the upstream request instead of leaving it to
+// run to completion for a response nobody can receive. Task submissions call
+// doRequest directly and stay untied on purpose: a task that the upstream has
+// already started stays valid and visible to the caller afterwards.
+func tieToClientContext(c *gin.Context, req *http.Request) *http.Request {
+	if req == nil || c == nil || c.Request == nil {
+		return req
+	}
+	requestCtx := c.Request.Context()
+	if requestCtx == nil {
+		return req
+	}
+	return req.WithContext(requestCtx)
+}
+
 func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody io.Reader) (*http.Response, error) {
 	fullRequestURL, err := a.GetRequestURL(info)
 	if err != nil {
@@ -333,7 +349,7 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
-	resp, err := doRequest(c, req, info)
+	resp, err := doRequest(c, tieToClientContext(c, req), info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
 	}
@@ -365,7 +381,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
-	resp, err := doRequest(c, req, info)
+	resp, err := doRequest(c, tieToClientContext(c, req), info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
 	}
@@ -478,7 +494,7 @@ func sendPingData(c *gin.Context, mutex *sync.Mutex) error {
 }
 
 func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
-	return doRequest(c, req, info)
+	return doRequest(c, tieToClientContext(c, req), info)
 }
 
 // keepUpstreamRedirectResponse stops net/http from following redirects while
@@ -531,6 +547,13 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 
 	resp, err := relayClient.Do(req)
 	if err != nil {
+		// The upstream call is tied to the client's request context (see
+		// tieToClientContext): a canceled context means the caller hung up, so
+		// the abort is a consequence, not a channel failure.
+		if req != nil && req.Context().Err() != nil {
+			logger.LogInfo(c, "upstream request aborted: "+req.Context().Err().Error())
+			return nil, types.NewClientGoneError(req.Context().Err())
+		}
 		logger.LogError(c, "do request failed: "+err.Error())
 		return nil, types.NewError(err, types.ErrorCodeDoRequestFailed, types.ErrOptionWithHideErrMsg("upstream error: do request failed"))
 	}
@@ -553,8 +576,12 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 		c.Set(common2.UpstreamRequestIdKey, upID)
 	}
 
-	_ = req.Body.Close()
-	_ = c.Request.Body.Close()
+	if req.Body != nil {
+		_ = req.Body.Close()
+	}
+	if c != nil && c.Request != nil && c.Request.Body != nil {
+		_ = c.Request.Body.Close()
+	}
 	return resp, nil
 }
 
@@ -581,6 +608,9 @@ func DoTaskApiRequest(a TaskAdaptor, c *gin.Context, info *common.RelayInfo, req
 	if err != nil {
 		return nil, fmt.Errorf("setup request header failed: %w", err)
 	}
+	// Deliberately not tied to the client context: a task submission that the
+	// upstream is already creating stays valid and visible to the caller in the
+	// task list, so a client disconnect must not abort it mid-flight.
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
