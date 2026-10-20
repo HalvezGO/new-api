@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { CircleAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -56,10 +57,15 @@ interface TimingMetricsCellProps {
   frtMs?: number
   isStream: boolean
   /**
-   * When true the request is still in flight: first-token and duration show
-   * placeholders instead of values that do not exist yet.
+   * When true the request is still in flight: the duration ticks from row
+   * creation, and the first token shows its latency as soon as it is known.
    */
   isPending?: boolean
+  /**
+   * Row creation time (Unix seconds). While pending, the duration label ticks
+   * from it so the row shows how long the request has been running.
+   */
+  createdAt?: number
   className?: string
   /**
    * `bar` (default) draws a full-height color segment beside the labels,
@@ -70,9 +76,33 @@ interface TimingMetricsCellProps {
   indicator?: 'bar' | 'dot'
 }
 
+/**
+ * Ticks once a second while a request is in flight so its duration label keeps
+ * counting instead of freezing on a placeholder.
+ */
+function usePendingElapsedSeconds(
+  createdAt: number | undefined,
+  enabled: boolean
+): number | null {
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    if (!enabled) {
+      return
+    }
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [enabled])
+  if (!enabled || createdAt == null || createdAt <= 0) {
+    return null
+  }
+  return Math.max(0, Math.floor(nowMs / 1000) - createdAt)
+}
+
 export function TimingMetricsCell(props: TimingMetricsCellProps) {
   const { t } = useTranslation()
   const indicator = props.indicator ?? 'bar'
+  const isPending = props.isPending === true
+  const pendingElapsed = usePendingElapsedSeconds(props.createdAt, isPending)
   const showFirstToken = props.isStream
   const firstTokenSeconds =
     props.frtMs != null && props.frtMs > 0 ? props.frtMs / 1000 : null
@@ -85,14 +115,22 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
     props.completionTokens
   )
   let firstTokenLabel: string
-  if (props.isPending) {
-    firstTokenLabel = '—'
-  } else if (firstTokenSeconds == null) {
-    firstTokenLabel = t('N/A')
-  } else {
+  if (firstTokenSeconds != null) {
     firstTokenLabel = formatUseTime(firstTokenSeconds)
+  } else if (isPending) {
+    // The stream has not produced its first token yet.
+    firstTokenLabel = '—'
+  } else {
+    firstTokenLabel = t('N/A')
   }
-  const totalTimeLabel = props.isPending ? '—' : formatUseTime(props.useTimeSec)
+  let totalTimeLabel: string
+  if (!isPending) {
+    totalTimeLabel = formatUseTime(props.useTimeSec)
+  } else if (pendingElapsed != null) {
+    totalTimeLabel = formatUseTime(pendingElapsed)
+  } else {
+    totalTimeLabel = '—'
+  }
 
   const labels = (
     <div className='flex min-h-8 min-w-0 flex-col justify-center gap-0.5 text-xs leading-tight'>

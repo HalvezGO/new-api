@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 )
 
@@ -69,6 +70,24 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 		return 0
 	}
 	relayInfo.ConsumeLogId = id
+	if relayInfo.IsStream && id > 0 {
+		// Surface the first-token latency on the still-pending row so the logs
+		// list shows progress before the stream ends. One async write per stream;
+		// the row is settled with the exact value anyway, and the status guard in
+		// the model update makes a late write a no-op instead of clobbering it.
+		relayInfo.OnFirstResponse = func() {
+			frtMs := float64(relayInfo.FirstResponseTime.UnixMilli() - relayInfo.StartTime.UnixMilli())
+			if frtMs <= 0 {
+				return
+			}
+			other["frt"] = frtMs
+			gopool.Go(func() {
+				if _, updateErr := model.UpdateInProgressConsumeLogOther(id, other); updateErr != nil {
+					common.SysLog("update in-progress consume log first-token time failed: " + updateErr.Error())
+				}
+			})
+		}
+	}
 	return id
 }
 
@@ -114,6 +133,11 @@ func buildFailedLogOther(c *gin.Context, relayInfo *relaycommon.RelayInfo, err *
 		other["request_path"] = c.Request.URL.Path
 	}
 	mergeRetryFailures(other, relayInfo)
+	if relayInfo.HasSendResponse() {
+		// The stream had already produced its first token before failing; keep
+		// that latency so the failed row stays comparable with completed rows.
+		other["frt"] = float64(relayInfo.FirstResponseTime.UnixMilli() - relayInfo.StartTime.UnixMilli())
+	}
 	if c != nil {
 		if useChannel := c.GetStringSlice("use_channel"); len(useChannel) > 0 {
 			other["admin_info"] = map[string]interface{}{

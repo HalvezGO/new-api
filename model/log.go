@@ -599,6 +599,23 @@ func MarkInProgressConsumeLogsTimedOut(ids []int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
+// UpdateInProgressConsumeLogOther rewrites the other payload of a consume row
+// that is still running, used to surface the first-token latency mid-stream. The
+// status guard makes a late write a no-op once the row settled: the finalize
+// already stored the exact value, so the settled row is never degraded.
+func UpdateInProgressConsumeLogOther(id int, other map[string]interface{}) (bool, error) {
+	if id <= 0 || other == nil {
+		return false, nil
+	}
+	result := LOG_DB.Model(&Log{}).
+		Where("id = ? AND status = ?", id, LogStatusInProgress).
+		Update("other", common.MapToJsonStr(other))
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
 type RecordTaskBillingLogParams struct {
 	UserId    int
 	LogType   int

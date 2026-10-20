@@ -740,6 +740,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             frtMs={other?.frt}
             isStream={log.is_stream}
             isPending={log.status === 1}
+            createdAt={log.created_at}
           />
         )
       },

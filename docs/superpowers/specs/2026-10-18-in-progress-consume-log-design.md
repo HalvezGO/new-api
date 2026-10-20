@@ -135,6 +135,14 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
   - quota/tokens 保持 0。
 - 与既有 `ChargeViolationFeeIfNeeded`（`service/violation_fee.go` 自己 Insert 一条违规费用行）互不干扰，保持原样。
 
+**流式首字回写**（请求仍在进行中）：
+
+- `RelayInfo` 新增 `OnFirstResponse func()`，由 `SetFirstResponseTime()` 在首个响应块到达时触发一次（`relay/helper/stream_scanner.go`）。
+- `RecordPendingConsumeLog` 仅在 `IsStream` 时注入回调：把 `other.frt`（毫秒，与终值字段同名同单位）异步写回占位行，`UPDATE logs SET other=? WHERE id=? AND status=1`，复用建行时的 `other`（无额外 SELECT，且不阻塞首块下发）。
+- `status=1` 守卫保证与终值化互斥：早于终值化则被终值覆盖（终值本就带精确 `frt`），晚于终值化则 0 行 no-op，不会破坏已结算行。
+- 失败终值化在 `HasSendResponse()` 时同样写入 `other.frt`，首字后失败的行也可看到首字耗时。
+- 前端：pending 行首字到达后显示 `frt`，耗时按 `created_at` 本地每秒跳动；非流式请求没有提前的首字值，沿用占位。
+
 **OpenAI Realtime（WSS）例外**：`/v1/realtime` 是长连接 WebSocket，没有自然的"请求结束"边界且可以合法超过任何清理阈值，本期**不插占位行**（保持现状：socket 关闭时由 `PostWssConsumeQuota` 写一条终值日志）。在 `RecordPendingConsumeLog` 入口对 `relayFormat == types.RelayFormatOpenAIRealtime` 直接跳过（记 debug 日志）。
 
 **边界**：
@@ -180,7 +188,7 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 - `features/usage-logs/data/schema.ts`：日志 schema 增加 `status: z.number().default(0)`。
 - 筛选栏（filters）：新增「状态」（全部 / 已完成 / 请求中 / 失败 / 已超时），映射为 `status` 查询参数。
 - `StreamTpsCell`（stream/tps 单元格）新增 `isPending`：pending 时把"流/非流"徽标替换为「请求中」（带轻微呼吸圆点），TPS 显示占位 `—`；失败态显示「失败」徽标；已超时（`status=3`）显示「已超时」徽标。
-- `TimingMetricsCell` pending 时首字/耗时均占位 `—`。
+- `TimingMetricsCell` pending 时首字/耗时默认占位 `—`；首字回写后首字显示实际时长，耗时按 `created_at` 每秒跳动。
 - Tokens 列（`common-logs-columns.tsx`）pending 时两数字占位 `…`；详情弹窗展示 status、`failure_reason`、`use_channel`、`retry_attempts`。
 - 移动端卡片（`usage-logs-mobile-card.tsx`）同源适配。
 - 自动刷新：日志工具栏新增开关（默认开），**仅当状态筛选包含"请求中"（全部或请求中）时**以 5s 轮询，其它情况下不轮询。

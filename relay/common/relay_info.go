@@ -107,6 +107,10 @@ type RelayInfo struct {
 	StartTime         time.Time
 	FirstResponseTime time.Time
 	isFirstResponse   bool
+	// OnFirstResponse runs once when the first upstream response arrives. The
+	// relay pipeline uses it to surface the first-token latency on the pending
+	// consume-log row while the request is still streaming.
+	OnFirstResponse func()
 	//SendLastReasoningResponse bool
 	IsStream               bool
 	IsGeminiBatchEmbedding bool
@@ -874,6 +878,9 @@ func (info *RelayInfo) SetFirstResponseTime() {
 	if info.isFirstResponse {
 		info.FirstResponseTime = time.Now()
 		info.isFirstResponse = false
+		if info.OnFirstResponse != nil {
+			info.OnFirstResponse()
+		}
 	}
 }
 

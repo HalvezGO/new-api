@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/relayconvert/convmeta"
@@ -175,4 +176,21 @@ func TestInitChannelMetaRestoresRequestReasoningEffortForRetry(t *testing.T) {
 	info.SetReasoningEffort("low")
 	info.InitChannelMeta(ctx)
 	assert.Equal(t, "max", info.ReasoningEffort)
+}
+
+// The pending consume log records the first-token latency through this hook, so
+// it must fire exactly once, on the first response, and not on later chunks.
+func TestSetFirstResponseTimeNotifiesOnce(t *testing.T) {
+	info := &RelayInfo{
+		StartTime:       time.Now().Add(-2 * time.Second),
+		isFirstResponse: true,
+	}
+	calls := 0
+	info.OnFirstResponse = func() { calls++ }
+
+	info.SetFirstResponseTime()
+	info.SetFirstResponseTime()
+
+	require.Equal(t, 1, calls)
+	require.True(t, info.HasSendResponse())
 }

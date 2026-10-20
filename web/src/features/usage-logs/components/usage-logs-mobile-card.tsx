@@ -304,6 +304,7 @@ function MobileStreamTimingField({ log }: { log: UsageLog }) {
         frtMs={other?.frt}
         isStream={log.is_stream}
         isPending={isPending}
+        createdAt={log.created_at}
         indicator='dot'
         className='min-w-0 flex-1'
       />
