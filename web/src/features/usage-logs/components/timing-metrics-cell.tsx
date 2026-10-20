@@ -238,22 +238,19 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
             <Tooltip>
               <TooltipTrigger
                 aria-label={
-                  props.clientGone ? t('Client disconnected') : t('Stream Status')
+                  props.clientGone ? 'client_gone' : t('Stream Status')
                 }
                 render={<CircleAlert className='text-destructive size-3' />}
               />
               <TooltipContent>
                 <div className='space-y-0.5 text-xs'>
-                  {props.clientGone ? (
-                    <p>{t('Client disconnected')}</p>
-                  ) : (
-                    <>
-                      <p>
-                        {t('Stream Status')}: {t('Error')}
-                      </p>
-                      <p>{props.streamStatus?.end_reason || 'unknown'}</p>
-                    </>
-                  )}
+                  <p>
+                    {t('Stream Status')}: {t('Error')}
+                  </p>
+                  <p>
+                    {props.streamStatus?.end_reason ||
+                      (props.clientGone ? 'client_gone' : 'unknown')}
+                  </p>
                   {(props.streamStatus?.error_count ?? 0) > 0 && (
                     <p>
                       {t('Soft Errors')}: {props.streamStatus?.error_count}
