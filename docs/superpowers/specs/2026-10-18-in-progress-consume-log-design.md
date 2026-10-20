@@ -162,9 +162,10 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 
 ### 7.3 兜底清理
 
-- 新建 `service/consume_log_cleanup.go`：`StartInProgressLogCleanup()`，完全镜像 `service/auth_cleanup.go` 的 `StartAuthArtifactCleanup`（master only、启动即执行一次 + 定时器）。
-- 间隔 1 小时。
-- `model.SweepStaleInProgressLogs(beforeUnix int64)`：`UPDATE logs SET status=3 WHERE type=2 AND status=1 AND created_at < ?`；条数记 SysLog。
+- 新建 `service/consume_log_cleanup.go`：`StartInProgressLogCleanup()`，镜像 `service/auth_cleanup.go` 的 `StartAuthArtifactCleanup`（启动即执行一次 + 定时器；兜底扫描仍为 master only）。
+- 启动恢复（所有节点执行，仅处理 `created_at < common.StartTime` 的行，即本进程启动前创建、不可能属于本进程在途请求的 pending 行）：pending 行在 `other.admin_info.node_name` 记录服务节点；启动时把「属于本节点上一进程」的行、以及「所属节点已不在 `system_instances` 心跳窗口内」的行直接标记为已超时。为覆盖崩溃后秒级重启（旧节点心跳尚未过期）的情况，启动约 `SystemInstanceStaleAfterSeconds + 30` 秒后再执行一次。
+- 没有节点标记的存量 pending 行（升级前的版本写入）只在单节点部署（除本节点外无其他存活实例）时按上述规则恢复，避免误伤多节点下兄弟节点的在途请求。
+- 间隔 1 小时；`model.SweepStaleInProgressLogs(beforeUnix int64)`：`UPDATE logs SET status=3 WHERE type=2 AND status=1 AND created_at < ?`；条数记 SysLog。
 - 阈值常量 `common.InProgressLogSweepAfterSeconds = 43200`（12 小时，远大于任何合法流式请求时长；被误清理的行在终值化时会走"回退插入已完成行"，不丢账）。
 - `main.go` 在 `service.StartAuthArtifactCleanup()` 旁新增调用。
 
@@ -178,7 +179,7 @@ func UpdateConsumeLog(c *gin.Context, id int, params RecordConsumeLogParams) err
 
 - `features/usage-logs/data/schema.ts`：日志 schema 增加 `status: z.number().default(0)`。
 - 筛选栏（filters）：新增「状态」（全部 / 已完成 / 请求中 / 失败 / 已超时），映射为 `status` 查询参数。
-- `StreamTpsCell`（stream/tps 单元格）新增 `isPending`：pending 时把"流/非流"徽标替换为「请求中」（带轻微呼吸圆点），TPS 显示占位 `—`；失败态显示「失败」徽标。
+- `StreamTpsCell`（stream/tps 单元格）新增 `isPending`：pending 时把"流/非流"徽标替换为「请求中」（带轻微呼吸圆点），TPS 显示占位 `—`；失败态显示「失败」徽标；已超时（`status=3`）显示「已超时」徽标。
 - `TimingMetricsCell` pending 时首字/耗时均占位 `—`。
 - Tokens 列（`common-logs-columns.tsx`）pending 时两数字占位 `…`；详情弹窗展示 status、`failure_reason`、`use_channel`、`retry_attempts`。
 - 移动端卡片（`usage-logs-mobile-card.tsx`）同源适配。
