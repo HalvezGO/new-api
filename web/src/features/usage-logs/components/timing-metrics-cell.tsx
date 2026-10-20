@@ -176,13 +176,19 @@ interface StreamTpsCellProps {
   status?: number
   isPending?: boolean
   streamStatus?: LogOtherData['stream_status']
+  /**
+   * The request ended because the caller hung up. Shows the alert marker even
+   * when the failed row has no stream status of its own.
+   */
+  clientGone?: boolean
   className?: string
 }
 
 export function StreamTpsCell(props: StreamTpsCellProps) {
   const { t } = useTranslation()
   const showStreamError =
-    props.isStream && props.streamStatus && props.streamStatus.status !== 'ok'
+    props.clientGone === true ||
+    (props.isStream && props.streamStatus && props.streamStatus.status !== 'ok')
   const isPending = props.isPending === true || props.status === 1
   const isFailed = props.status === 2
   let streamLabelTone = 'text-muted-foreground'
@@ -231,14 +237,23 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger
+                aria-label={
+                  props.clientGone ? t('Client disconnected') : t('Stream Status')
+                }
                 render={<CircleAlert className='text-destructive size-3' />}
               />
               <TooltipContent>
                 <div className='space-y-0.5 text-xs'>
-                  <p>
-                    {t('Stream Status')}: {t('Error')}
-                  </p>
-                  <p>{props.streamStatus?.end_reason || 'unknown'}</p>
+                  {props.clientGone ? (
+                    <p>{t('Client disconnected')}</p>
+                  ) : (
+                    <>
+                      <p>
+                        {t('Stream Status')}: {t('Error')}
+                      </p>
+                      <p>{props.streamStatus?.end_reason || 'unknown'}</p>
+                    </>
+                  )}
                   {(props.streamStatus?.error_count ?? 0) > 0 && (
                     <p>
                       {t('Soft Errors')}: {props.streamStatus?.error_count}

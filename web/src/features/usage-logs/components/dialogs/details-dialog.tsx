@@ -72,6 +72,7 @@ import {
   getTieredBillingSummary,
   hasAnyCacheTokens,
   isViolationFeeLog,
+  isClientGoneLog,
   getFirstResponseTimeColor,
   getResponseTimeColor,
   getReasoningEffortVariant,
@@ -607,12 +608,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const channelChain =
     useChannel && useChannel.length > 0 ? useChannel.join(' → ') : undefined
   const retryFailures = (other?.retry_failures ?? []).filter(Boolean)
-  // A stream cut short by the caller carries the client_gone marker; rows written
-  // before that marker existed only have the stream end reason, so both shapes
-  // are treated as the same outcome.
-  const clientGone =
-    other?.client_gone === true ||
-    other?.stream_status?.end_reason === 'client_gone'
+  const clientGone = isClientGoneLog(other)
   const reasoningEffortVariant = getReasoningEffortVariant(
     other?.reasoning_effort
   )

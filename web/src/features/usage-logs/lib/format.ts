@@ -92,6 +92,19 @@ export function isViolationFeeLog(other: LogOtherData | null): boolean {
   )
 }
 
+/**
+ * Whether the request ended because the caller hung up. Failed rows carry the
+ * backend's client_gone marker; stream rows written before that marker existed
+ * only recorded the end reason, so both shapes count as the same outcome.
+ */
+export function isClientGoneLog(other: LogOtherData | null): boolean {
+  if (!other) return false
+  return (
+    other.client_gone === true ||
+    other.stream_status?.end_reason === 'client_gone'
+  )
+}
+
 function isPositiveFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
 }

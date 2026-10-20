@@ -73,4 +73,23 @@ describe('usage log stream TPS display', () => {
     expect(screen.getByText('Failed')).toBeInTheDocument()
     expect(screen.queryByText(/t\/s/)).not.toBeInTheDocument()
   })
+
+  test('marks a client disconnect on a failed row that has no stream status', () => {
+    i18next.addResourceBundle('en', 'translation', {
+      Failed: 'Failed',
+      'Client disconnected': 'Client disconnected',
+    })
+    render(<StreamTpsCell isStream={false} status={2} clientGone />)
+
+    expect(screen.getByText('Failed')).toBeInTheDocument()
+    expect(screen.getByLabelText('Client disconnected')).toBeInTheDocument()
+  })
+
+  test('keeps ordinary failures unmarked', () => {
+    render(<StreamTpsCell isStream={false} status={2} />)
+
+    expect(
+      screen.queryByLabelText('Client disconnected')
+    ).not.toBeInTheDocument()
+  })
 })

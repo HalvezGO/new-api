@@ -48,6 +48,7 @@ import {
   getTokensPerSecond,
   getTokensPerSecondAfterFirstToken,
   hasAnyCacheTokens,
+  isClientGoneLog,
   parseLogOther,
   isViolationFeeLog,
   renderAuditContent,
@@ -649,6 +650,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             status={log.status}
             isPending={isPending}
             streamStatus={other?.stream_status}
+            clientGone={isClientGoneLog(other)}
           />
         )
       },

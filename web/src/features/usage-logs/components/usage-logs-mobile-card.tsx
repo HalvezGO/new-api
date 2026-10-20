@@ -43,6 +43,7 @@ import type { UsageLog } from '../data/schema'
 import {
   getTokensPerSecond,
   getTokensPerSecondAfterFirstToken,
+  isClientGoneLog,
   parseLogOther,
 } from '../lib/format'
 import {
@@ -313,6 +314,7 @@ function MobileStreamTimingField({ log }: { log: UsageLog }) {
         status={log.status}
         isPending={isPending}
         streamStatus={other?.stream_status}
+        clientGone={isClientGoneLog(other)}
         className='shrink-0'
       />
     </div>
