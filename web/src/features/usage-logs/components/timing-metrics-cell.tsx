@@ -170,8 +170,9 @@ interface StreamTpsCellProps {
    */
   tokensPerSecondAfterFirstToken?: number | null
   /**
-   * Consume-log status: 1 renders the in-progress placeholder, 2 renders the
-   * failed badge, either of which replaces the throughput line.
+   * Consume-log status: 1 renders the in-progress placeholder, 2 the failed
+   * badge, 3 the timed-out badge (a row whose serving process died), each of
+   * which replaces the throughput line.
    */
   status?: number
   isPending?: boolean
@@ -191,14 +192,15 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
     (props.isStream && props.streamStatus && props.streamStatus.status !== 'ok')
   const isPending = props.isPending === true || props.status === 1
   const isFailed = props.status === 2
+  const isTimedOut = props.status === 3
   let streamLabelTone = 'text-muted-foreground'
-  if (isPending) {
+  if (isPending || isTimedOut) {
     streamLabelTone = 'text-warning'
   } else if (props.isStream) {
     streamLabelTone = 'text-info'
   }
   let tpsLabel = '—'
-  if (!isPending && !isFailed) {
+  if (!isPending && !isFailed && !isTimedOut) {
     if (props.tokensPerSecond != null) {
       tpsLabel = `${Math.round(props.tokensPerSecond)} t/s`
       if (props.tokensPerSecondAfterFirstToken != null) {
@@ -211,6 +213,8 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
     streamLabel = t('In progress')
   } else if (isFailed) {
     streamLabel = t('Failed')
+  } else if (isTimedOut) {
+    streamLabel = t('Timed out')
   }
 
   return (

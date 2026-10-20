@@ -570,6 +570,35 @@ func SweepStaleInProgressLogs(beforeUnix int64) (int64, error) {
 	return result.RowsAffected, nil
 }
 
+// ListInProgressConsumeLogsBefore returns the pending consume rows created before
+// beforeUnix with the payload that records their serving node, so a restarted
+// process can tell apart rows it can no longer be serving from live requests.
+func ListInProgressConsumeLogsBefore(beforeUnix int64) ([]Log, error) {
+	var logs []Log
+	err := LOG_DB.
+		Select("id", "created_at", "other").
+		Where("type = ? AND status = ? AND created_at < ?", LogTypeConsume, LogStatusInProgress, beforeUnix).
+		Order("id").
+		Find(&logs).Error
+	return logs, err
+}
+
+// MarkInProgressConsumeLogsTimedOut marks the given pending rows as timed out.
+// The status guard keeps concurrent recovery runs idempotent and never touches a
+// row that settled in the meantime.
+func MarkInProgressConsumeLogsTimedOut(ids []int) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	result := LOG_DB.Model(&Log{}).
+		Where("id IN ? AND status = ?", ids, LogStatusInProgress).
+		Update("status", LogStatusTimeout)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
 type RecordTaskBillingLogParams struct {
 	UserId    int
 	LogType   int

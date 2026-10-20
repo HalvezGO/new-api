@@ -38,6 +38,21 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 	if relayInfo.RelayFormat == types.RelayFormatOpenAIRealtime {
 		return 0
 	}
+	other := map[string]interface{}{
+		"in_progress": true,
+		"request_path": func() string {
+			if c != nil && c.Request != nil && c.Request.URL != nil {
+				return c.Request.URL.Path
+			}
+			return ""
+		}(),
+	}
+	if common.NodeName != "" {
+		// Record the serving node so a restart can tell rows left behind by a
+		// dead process from requests still running elsewhere. Admin-only, like the
+		// rest of admin_info (stripped from user-facing log payloads).
+		other["admin_info"] = map[string]interface{}{"node_name": common.NodeName}
+	}
 	id, err := model.RecordPendingConsumeLog(c, relayInfo.UserId, model.RecordConsumeLogParams{
 		ModelName: relayInfo.OriginModelName,
 		TokenName: c.GetString("token_name"),
@@ -48,15 +63,7 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 		// runs in the handler), so use the nil-safe accessor: 0 means "settled
 		// later", and the finalize update writes the real channel id.
 		ChannelId: relayInfo.GetChannelID(),
-		Other: map[string]interface{}{
-			"in_progress": true,
-			"request_path": func() string {
-				if c != nil && c.Request != nil && c.Request.URL != nil {
-					return c.Request.URL.Path
-				}
-				return ""
-			}(),
-		},
+		Other:     other,
 	})
 	if err != nil {
 		return 0

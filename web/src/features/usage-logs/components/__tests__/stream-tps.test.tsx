@@ -74,6 +74,16 @@ describe('usage log stream TPS display', () => {
     expect(screen.queryByText(/t\/s/)).not.toBeInTheDocument()
   })
 
+  test('shows the timed-out state for a row whose serving process died', () => {
+    i18next.addResourceBundle('en', 'translation', {
+      'Timed out': 'Timed out',
+    })
+    render(<StreamTpsCell isStream status={3} tokensPerSecond={8} />)
+
+    expect(screen.getByText('Timed out')).toBeInTheDocument()
+    expect(screen.queryByText(/t\/s/)).not.toBeInTheDocument()
+  })
+
   test('marks a client disconnect on a failed row that has no stream status', () => {
     i18next.addResourceBundle('en', 'translation', {
       Failed: 'Failed',
