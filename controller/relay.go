@@ -263,6 +263,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 	}
 
+	// The retry loop only checks the client before each attempt and wait: the
+	// final in-flight attempt can still return a provider error after the caller
+	// hung up, and settlement happens before the response is written, so a
+	// canceled context here means the request must be recorded as client-gone
+	// instead of blaming the provider.
+	newAPIError = resolveClientGoneAtSettlement(c, newAPIError)
+
 	useChannel := c.GetStringSlice("use_channel")
 	if len(useChannel) > 1 {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
@@ -423,6 +430,29 @@ func isClientGone(c *gin.Context, err *types.NewAPIError) bool {
 		return true
 	}
 	return c != nil && c.Request != nil && c.Request.Context().Err() != nil
+}
+
+// resolveClientGoneAtSettlement reports the request as client-gone when the
+// caller hung up while the failure was still settling. The retry loop checks the
+// client before every attempt and wait, but the last in-flight attempt can still
+// finish with a provider error after the disconnect; settlement runs before the
+// response is written, so a canceled request context here can only mean the
+// caller is gone. Violation-fee failures keep their outcome so the fee is
+// charged instead of being masked by the disconnect.
+func resolveClientGoneAtSettlement(c *gin.Context, err *types.NewAPIError) *types.NewAPIError {
+	if err == nil || types.IsClientGone(err) {
+		return err
+	}
+	if service.IsViolationFeeCode(err.GetErrorCode()) {
+		return err
+	}
+	if c == nil || c.Request == nil {
+		return err
+	}
+	if ctxErr := c.Request.Context().Err(); ctxErr != nil {
+		return types.NewClientGoneError(ctxErr)
+	}
+	return err
 }
 
 func processChannelError(c *gin.Context, relayInfo *relaycommon.RelayInfo, channelError types.ChannelError, err *types.NewAPIError) {
