@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
 import { useSidebarConfig } from '@/hooks/use-sidebar-config'
 
+import { UsageLogsDetailsDialog } from './components/dialogs/usage-logs-details-dialog'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
   type LogsViewScope,
@@ -163,6 +164,8 @@ function UsageLogsContent() {
         open={userInfoDialogOpen}
         onOpenChange={setUserInfoDialogOpen}
       />
+
+      <UsageLogsDetailsDialog />
 
       <CacheStatsDialog
         open={affinityDialogOpen}

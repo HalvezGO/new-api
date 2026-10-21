@@ -21,6 +21,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 import { useIsAdmin } from '@/hooks/use-admin'
 
+import type { UsageLog } from '../data/schema'
 import type { ChannelAffinityInfo } from '../types'
 
 export type LogsViewScope = 'all' | 'self'
@@ -30,6 +31,12 @@ interface UsageLogsContextValue {
   setSelectedUserId: (userId: number | null) => void
   userInfoDialogOpen: boolean
   setUserInfoDialogOpen: (open: boolean) => void
+  // Details is a page-level dialog: the list refreshes while it is open (and
+  // rows can drop off the page), so its state must not live inside a row cell.
+  detailsLog: UsageLog | null
+  detailsDialogOpen: boolean
+  openDetails: (log: UsageLog) => void
+  setDetailsDialogOpen: (open: boolean) => void
   affinityTarget: ChannelAffinityInfo | null
   setAffinityTarget: (target: ChannelAffinityInfo | null) => void
   affinityDialogOpen: boolean
@@ -47,11 +54,20 @@ const UsageLogsContext = createContext<UsageLogsContextValue | undefined>(
 export function UsageLogsProvider({ children }: { children: ReactNode }) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false)
+  const [detailsLog, setDetailsLog] = useState<UsageLog | null>(null)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [affinityTarget, setAffinityTarget] =
     useState<ChannelAffinityInfo | null>(null)
   const [affinityDialogOpen, setAffinityDialogOpen] = useState(false)
   const [sensitiveVisible, setSensitiveVisible] = useState(true)
   const [viewScope, setViewScope] = useState<LogsViewScope>('all')
+
+  const openDetails = (log: UsageLog) => {
+    // Keep the last log around after closing so the dialog can animate out;
+    // reopening simply replaces it.
+    setDetailsLog(log)
+    setDetailsDialogOpen(true)
+  }
 
   return (
     <UsageLogsContext.Provider
@@ -60,6 +76,10 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         setSelectedUserId,
         userInfoDialogOpen,
         setUserInfoDialogOpen,
+        detailsLog,
+        detailsDialogOpen,
+        openDetails,
+        setDetailsDialogOpen,
         affinityTarget,
         setAffinityTarget,
         affinityDialogOpen,
