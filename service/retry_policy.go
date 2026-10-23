@@ -1,6 +1,8 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -28,6 +30,10 @@ func ResolveRetryPolicy(modelName string, channel *model.Channel) RetryPolicy {
 	}
 
 	if channel != nil {
+		// Model overrides are keyed by the model name shown in the channel's
+		// Models list. Clients call prefixed names, so strip the channel prefix
+		// before looking the override up.
+		modelName = strings.TrimPrefix(modelName, channel.GetOtherSettings().ModelPrefix)
 		channelSetting := channel.GetSetting()
 		if channelSetting.RetryTimes != nil {
 			policy.RetryTimes = *channelSetting.RetryTimes

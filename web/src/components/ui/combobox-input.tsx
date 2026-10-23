@@ -39,6 +39,7 @@ interface ComboboxInputProps {
   id?: string
   allowCustomValue?: boolean
   openOnFocus?: boolean
+  disabled?: boolean
 }
 
 export function ComboboxInput({
@@ -51,6 +52,7 @@ export function ComboboxInput({
   id,
   allowCustomValue = false,
   openOnFocus = true,
+  disabled = false,
 }: ComboboxInputProps) {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
@@ -155,6 +157,7 @@ export function ComboboxInput({
   }, [highlightedIndex])
 
   const showDropdown =
+    !disabled &&
     open &&
     (filteredOptions.length > 0 || (allowCustomValue && searchValue.trim()))
 
@@ -171,6 +174,7 @@ export function ComboboxInput({
         autoComplete='off'
         placeholder={placeholder}
         value={displayValue}
+        disabled={disabled}
         onChange={(e) => {
           const nextValue = e.target.value
           setSearchValue(nextValue)
@@ -180,12 +184,14 @@ export function ComboboxInput({
           if (!open) setOpen(true)
         }}
         onPointerDown={() => {
+          if (disabled) return
           pointerFocusRef.current = true
           if (document.activeElement === inputRef.current && !open) {
             setOpen(true)
           }
         }}
         onFocus={() => {
+          if (disabled) return
           setSearchValue(allowCustomValue && !selectedOption ? value : '')
           if (openOnFocus || pointerFocusRef.current) {
             setOpen(true)

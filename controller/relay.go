@@ -224,7 +224,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			break
 		}
 		retryPolicy := service.ResolveRetryPolicy(relayInfo.OriginModelName, channel)
-		if retryPolicy.RetryTimes > retryLimit {
+		if retryParam.GetRetry() == 0 || retryPolicy.RetryTimes > retryLimit {
 			retryLimit = retryPolicy.RetryTimes
 			retryParam.SetRetryLimit(retryLimit)
 		}
@@ -387,6 +387,9 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		// available through the context. Retry policy resolution needs them.
 		if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
 			channel.SetSetting(channelSetting)
+		}
+		if otherSetting, ok := common.GetContextKeyType[dto.ChannelOtherSettings](c, constant.ContextKeyChannelOtherSetting); ok {
+			channel.SetOtherSettings(otherSetting)
 		}
 		return channel, nil
 	}
@@ -686,7 +689,7 @@ func RelayTask(c *gin.Context) {
 
 		addUsedChannel(c, channel.Id)
 		retryPolicy := service.ResolveRetryPolicy(relayInfo.OriginModelName, channel)
-		if retryPolicy.RetryTimes > retryLimit {
+		if retryParam.GetRetry() == 0 || retryPolicy.RetryTimes > retryLimit {
 			retryLimit = retryPolicy.RetryTimes
 			retryParam.SetRetryLimit(retryLimit)
 		}

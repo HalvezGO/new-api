@@ -5348,6 +5348,17 @@
     "Zero retention": "Zero retention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Add Override": "Add Override",
+    "Add models to this channel first.": "Add models to this channel first.",
+    "No model retry overrides configured. Click \"Add Override\" to get started.": "No model retry overrides configured. Click \"Add Override\" to get started.",
+    "Copy override": "Copy override",
+    "Delete override": "Delete override",
+    "Retry Interval (ms)": "Retry Interval (ms)",
+    "Inherit": "Inherit",
+    "Select a model for each retry override row": "Select a model for each retry override row",
+    "Duplicate model in retry overrides: {{model}}": "Duplicate model in retry overrides: {{model}}",
+    "Retry times for {{model}} must be an integer between 0 and 100": "Retry times for {{model}} must be an integer between 0 and 100",
+    "Retry interval for {{model}} must be an integer between 0 and 30000": "Retry interval for {{model}} must be an integer between 0 and 30000"
   }
 }

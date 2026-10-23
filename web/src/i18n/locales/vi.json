@@ -5348,6 +5348,17 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Add Override": "Thêm ghi đè",
+    "Add models to this channel first.": "Hãy thêm mô hình vào kênh này trước.",
+    "No model retry overrides configured. Click \"Add Override\" to get started.": "Chưa cấu hình ghi đè thử lại theo mô hình. Nhấp vào \"Thêm ghi đè\" để bắt đầu.",
+    "Copy override": "Sao chép ghi đè",
+    "Delete override": "Xóa ghi đè",
+    "Retry Interval (ms)": "Khoảng thời gian thử lại (ms)",
+    "Inherit": "Kế thừa",
+    "Select a model for each retry override row": "Chọn một mô hình cho mỗi dòng ghi đè thử lại",
+    "Duplicate model in retry overrides: {{model}}": "Mô hình trùng lặp trong ghi đè thử lại: {{model}}",
+    "Retry times for {{model}} must be an integer between 0 and 100": "Số lần thử lại cho {{model}} phải là số nguyên từ 0 đến 100",
+    "Retry interval for {{model}} must be an integer between 0 and 30000": "Khoảng thời gian thử lại cho {{model}} phải là số nguyên từ 0 đến 30000"
   }
 }

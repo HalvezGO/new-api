@@ -5348,6 +5348,17 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Add Override": "Ajouter une surcharge",
+    "Add models to this channel first.": "Ajoutez d'abord des modèles à ce canal.",
+    "No model retry overrides configured. Click \"Add Override\" to get started.": "Aucune surcharge de tentative par modèle n'est configurée. Cliquez sur « Ajouter une surcharge » pour commencer.",
+    "Copy override": "Copier la surcharge",
+    "Delete override": "Supprimer la surcharge",
+    "Retry Interval (ms)": "Intervalle de tentative (ms)",
+    "Inherit": "Hériter",
+    "Select a model for each retry override row": "Sélectionnez un modèle pour chaque ligne de surcharge de tentative",
+    "Duplicate model in retry overrides: {{model}}": "Modèle en double dans les surcharges de tentative : {{model}}",
+    "Retry times for {{model}} must be an integer between 0 and 100": "Le nombre de tentatives pour {{model}} doit être un entier entre 0 et 100",
+    "Retry interval for {{model}} must be an integer between 0 and 30000": "L'intervalle de tentative pour {{model}} doit être un entier entre 0 et 30000"
   }
 }

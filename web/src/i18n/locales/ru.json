@@ -5348,6 +5348,17 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Add Override": "Добавить переопределение",
+    "Add models to this channel first.": "Сначала добавьте модели в этот канал.",
+    "No model retry overrides configured. Click \"Add Override\" to get started.": "Переопределения повторов по моделям не настроены. Нажмите «Добавить переопределение», чтобы начать.",
+    "Copy override": "Копировать переопределение",
+    "Delete override": "Удалить переопределение",
+    "Retry Interval (ms)": "Интервал повтора (мс)",
+    "Inherit": "Наследовать",
+    "Select a model for each retry override row": "Выберите модель для каждой строки переопределения повторов",
+    "Duplicate model in retry overrides: {{model}}": "Дублирующаяся модель в переопределениях повторов: {{model}}",
+    "Retry times for {{model}} must be an integer between 0 and 100": "Количество повторов для {{model}} должно быть целым числом от 0 до 100",
+    "Retry interval for {{model}} must be an integer between 0 and 30000": "Интервал повтора для {{model}} должен быть целым числом от 0 до 30000"
   }
 }

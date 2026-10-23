@@ -847,6 +847,7 @@ export function transformFormDataToCreatePayload(formData: ChannelFormValues): {
   channel: Partial<Channel>
 } {
   const mode = formData.multi_key_mode || 'single'
+  const modelPrefix = formData.model_prefix || ''
 
   const channel: Partial<Channel> = {
     name: formData.name,
@@ -854,10 +855,10 @@ export function transformFormDataToCreatePayload(formData: ChannelFormValues): {
     base_url: normalizeBaseUrl(formData.base_url) || null,
     key: formData.key,
     openai_organization: formData.openai_organization || null,
-    models: formData.model_prefix
+    models: modelPrefix
       ? (formData.models || '')
           .split(',')
-          .map((m) => addModelPrefix(m.trim(), formData.model_prefix))
+          .map((m) => addModelPrefix(m.trim(), modelPrefix))
           .join(',')
       : formData.models,
     group: formatGroups(formData.group),
@@ -901,16 +902,17 @@ export function transformFormDataToUpdatePayload(
   formData: ChannelFormValues,
   channelId: number
 ): Partial<Channel> {
+  const modelPrefix = formData.model_prefix || ''
   const payload: Partial<Channel> = {
     id: channelId,
     name: formData.name,
     type: formData.type,
     base_url: normalizeBaseUrl(formData.base_url) || null,
     openai_organization: formData.openai_organization || null,
-    models: formData.model_prefix
+    models: modelPrefix
       ? (formData.models || '')
           .split(',')
-          .map((m) => addModelPrefix(m.trim(), formData.model_prefix))
+          .map((m) => addModelPrefix(m.trim(), modelPrefix))
           .join(',')
       : formData.models,
     group: formatGroups(formData.group),

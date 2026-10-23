@@ -5348,6 +5348,17 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Add Override": "添加覆盖",
+    "Add models to this channel first.": "请先在此渠道添加模型。",
+    "No model retry overrides configured. Click \"Add Override\" to get started.": "尚未配置按模型重试覆盖。点击“添加覆盖”开始配置。",
+    "Copy override": "复制覆盖",
+    "Delete override": "删除覆盖",
+    "Retry Interval (ms)": "重试间隔（毫秒）",
+    "Inherit": "继承",
+    "Select a model for each retry override row": "请为每条重试覆盖选择模型",
+    "Duplicate model in retry overrides: {{model}}": "重试覆盖中存在重复模型：{{model}}",
+    "Retry times for {{model}} must be an integer between 0 and 100": "{{model}} 的重试次数必须是 0 到 100 之间的整数",
+    "Retry interval for {{model}} must be an integer between 0 and 30000": "{{model}} 的重试间隔必须是 0 到 30000 之间的整数"
   }
 }

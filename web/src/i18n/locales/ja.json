@@ -5348,6 +5348,17 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Add Override": "上書きを追加",
+    "Add models to this channel first.": "先にこのチャネルへモデルを追加してください。",
+    "No model retry overrides configured. Click \"Add Override\" to get started.": "モデル別の再試行上書きは設定されていません。「上書きを追加」をクリックして開始してください。",
+    "Copy override": "上書きをコピー",
+    "Delete override": "上書きを削除",
+    "Retry Interval (ms)": "再試行間隔（ミリ秒）",
+    "Inherit": "継承",
+    "Select a model for each retry override row": "各再試行上書き行のモデルを選択してください",
+    "Duplicate model in retry overrides: {{model}}": "再試行上書きに重複したモデルがあります: {{model}}",
+    "Retry times for {{model}} must be an integer between 0 and 100": "{{model}} の再試行回数は 0〜100 の整数である必要があります",
+    "Retry interval for {{model}} must be an integer between 0 and 30000": "{{model}} の再試行間隔は 0〜30000 の整数である必要があります"
   }
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,6 +75,21 @@ func TestResolveRetryPolicy(t *testing.T) {
 
 		assert.Equal(t, 1, policy.RetryTimes)
 		assert.Equal(t, 900, policy.RetryInterval)
+	})
+
+	t.Run("model override matches the model name without the channel prefix", func(t *testing.T) {
+		channel := newRetryPolicyChannel(t, `{"retry_times": 7, "retry_interval": 1200}`)
+		channel.SetOtherSettings(dto.ChannelOtherSettings{ModelPrefix: "byok/"})
+
+		policy := ResolveRetryPolicy("byok/model-both", channel)
+
+		assert.Equal(t, 5, policy.RetryTimes)
+		assert.Equal(t, 1500, policy.RetryInterval)
+
+		unknownPolicy := ResolveRetryPolicy("byok/unknown-model", channel)
+
+		assert.Equal(t, 7, unknownPolicy.RetryTimes)
+		assert.Equal(t, 1200, unknownPolicy.RetryInterval)
 	})
 
 	t.Run("stored channel values are clamped", func(t *testing.T) {
