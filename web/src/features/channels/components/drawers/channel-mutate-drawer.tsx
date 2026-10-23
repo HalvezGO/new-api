@@ -289,6 +289,8 @@ const SENSITIVE_FORM_FIELDS = [
   'proxy',
   'http_protocol',
   'http2_connection_shards',
+  'retry_times',
+  'retry_interval',
   'pass_through_body_enabled',
   'system_prompt',
   'system_prompt_override',
@@ -347,6 +349,8 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     (values.http_protocol && values.http_protocol !== 'auto') ||
     (values.http2_connection_shards != null &&
       values.http2_connection_shards > 1) ||
+    values.retry_times?.trim() ||
+    values.retry_interval?.trim() ||
     values.claude_beta_query ||
     values.upstream_model_update_check_enabled ||
     values.upstream_model_update_auto_sync_enabled ||
@@ -2777,7 +2781,7 @@ export function ChannelMutateDrawer({
                                     </FormControl>
                                     <FormDescription>
                                       {t(
-                                        'Custom API base URL. For official channels, New API has built-in addresses. Only fill this for third-party proxy sites or special endpoints. Do not add trailing slash. Include the version in the URL (e.g. https://api.openai.com/v1).' 
+                                        'Custom API base URL. For official channels, New API has built-in addresses. Only fill this for third-party proxy sites or special endpoints. Do not add trailing slash. Include the version in the URL (e.g. https://api.openai.com/v1).'
                                       )}
                                     </FormDescription>
                                     <FormMessage />
@@ -3606,7 +3610,9 @@ export function ChannelMutateDrawer({
                                           </p>
                                           <div className='space-y-1 font-mono text-xs'>
                                             <div className='flex items-center gap-1'>
-                                              <span>{field.value || 'prefix/'}</span>
+                                              <span>
+                                                {field.value || 'prefix/'}
+                                              </span>
                                               <ArrowRight
                                                 className='h-3.5 w-3.5 opacity-70'
                                                 aria-hidden='true'
@@ -4233,6 +4239,74 @@ export function ChannelMutateDrawer({
                                         onCheckedChange={field.onChange}
                                       />
                                     </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+
+                            <div className='grid gap-4 sm:grid-cols-2'>
+                              <FormField
+                                control={form.control}
+                                name='retry_times'
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{t('Retry Times')}</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type='number'
+                                        min={0}
+                                        max={100}
+                                        placeholder={t(
+                                          'Inherit global setting'
+                                        )}
+                                        name={field.name}
+                                        ref={field.ref}
+                                        value={field.value ?? ''}
+                                        onBlur={field.onBlur}
+                                        onChange={(event) =>
+                                          field.onChange(event.target.value)
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormDescription>
+                                      {t(
+                                        'Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.'
+                                      )}
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name='retry_interval'
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{t('Retry Interval')}</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type='number'
+                                        min={0}
+                                        max={30000}
+                                        placeholder={t(
+                                          'Inherit global setting'
+                                        )}
+                                        name={field.name}
+                                        ref={field.ref}
+                                        value={field.value ?? ''}
+                                        onBlur={field.onBlur}
+                                        onChange={(event) =>
+                                          field.onChange(event.target.value)
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormDescription>
+                                      {t(
+                                        'Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.'
+                                      )}
+                                    </FormDescription>
+                                    <FormMessage />
                                   </FormItem>
                                 )}
                               />

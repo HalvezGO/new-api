@@ -201,7 +201,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	// Retry budget: the model override (or the global option) decides the
+	// initial bound, and a channel override may raise it for the attempts that
+	// channel serves. The bound is what keeps a misconfigured per-channel value
+	// from spinning the loop forever.
+	retryLimit := service.ResolveRetryPolicy(relayInfo.OriginModelName, nil).RetryTimes
+	retryParam.RetryLimit = common.GetPointer(retryLimit)
+
+	for ; retryParam.GetRetry() <= retryLimit; retryParam.IncreaseRetry() {
 		// Check before every attempt, including the first: a client that already
 		// hung up must not cause a fresh upstream call.
 		if c.Request.Context().Err() != nil {
@@ -215,6 +222,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			logger.LogError(c, channelErr.Error())
 			newAPIError = channelErr
 			break
+		}
+		retryPolicy := service.ResolveRetryPolicy(relayInfo.OriginModelName, channel)
+		if retryPolicy.RetryTimes > retryLimit {
+			retryLimit = retryPolicy.RetryTimes
+			retryParam.SetRetryLimit(retryLimit)
 		}
 		addUsedChannel(c, channel.Id)
 		if billingErr := service.PrepareTieredBillingForSelectedGroup(c, relayInfo); billingErr != nil {
@@ -255,10 +267,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		processChannelError(c, relayInfo, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
-		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
+		remainingRetry := retryPolicy.RetryTimes - retryParam.GetRetry()
+		if !shouldRetry(c, newAPIError, remainingRetry) {
 			break
 		}
-		if !waitBeforeRetry(c, relayInfo, newAPIError.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
+		if !waitBeforeRetry(c, relayInfo, newAPIError.StatusCode, remainingRetry, retryPolicy.RetryInterval) {
 			break
 		}
 	}
@@ -299,23 +312,25 @@ func addUsedChannel(c *gin.Context, channelId int) {
 
 // waitBeforeRetry applies the configured retry interval before the next retry
 // attempt when the failure status code is listed in the retry interval status
-// codes. It reports whether the caller should keep retrying: false means the
-// client disconnected during the wait and retrying would be pointless.
-func waitBeforeRetry(c *gin.Context, relayInfo *relaycommon.RelayInfo, statusCode int, remainingRetry int) bool {
+// codes. retryInterval is the effective interval for the failed attempt
+// (model > channel > global). It reports whether the caller should keep
+// retrying: false means the client disconnected during the wait and retrying
+// would be pointless.
+func waitBeforeRetry(c *gin.Context, relayInfo *relaycommon.RelayInfo, statusCode int, remainingRetry int, retryInterval int) bool {
 	// Clear the previously recorded wait first: when this wait is skipped the
 	// stale value would otherwise be attributed to the next failed attempt in
 	// the request's retry history.
 	if relayInfo != nil {
 		relayInfo.LastRetryWaitMs = 0
 	}
-	if remainingRetry <= 0 || common.RetryInterval <= 0 || !operation_setting.ShouldUseRetryInterval(statusCode) {
+	if remainingRetry <= 0 || retryInterval <= 0 || !operation_setting.ShouldUseRetryInterval(statusCode) {
 		return true
 	}
 	if relayInfo != nil {
-		relayInfo.LastRetryWaitMs = common.RetryInterval
+		relayInfo.LastRetryWaitMs = retryInterval
 	}
-	logger.LogInfo(c, fmt.Sprintf("上游返回状态码 %d，等待 %dms 后重试（剩余重试次数 %d）", statusCode, common.RetryInterval, remainingRetry))
-	timer := time.NewTimer(time.Duration(common.RetryInterval) * time.Millisecond)
+	logger.LogInfo(c, fmt.Sprintf("上游返回状态码 %d，等待 %dms 后重试（剩余重试次数 %d）", statusCode, retryInterval, remainingRetry))
+	timer := time.NewTimer(time.Duration(retryInterval) * time.Millisecond)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
@@ -361,12 +376,19 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		if !autoBan {
 			autoBanInt = 0
 		}
-		return &model.Channel{
+		channel := &model.Channel{
 			Id:      c.GetInt("channel_id"),
 			Type:    c.GetInt("channel_type"),
 			Name:    c.GetString("channel_name"),
 			AutoBan: &autoBanInt,
-		}, nil
+		}
+		// The channel was selected before this relay info existed (middleware
+		// distribution or a task origin channel), so its stored settings are only
+		// available through the context. Retry policy resolution needs them.
+		if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
+			channel.SetSetting(channelSetting)
+		}
+		return channel, nil
 	}
 	channel, selectGroup, err := service.CacheGetRandomSatisfiedChannel(retryParam)
 	if err != nil {
@@ -630,8 +652,10 @@ func RelayTask(c *gin.Context) {
 		RequestPath: c.Request.URL.Path,
 		Retry:       common.GetPointer(0),
 	}
+	retryLimit := service.ResolveRetryPolicy(relayInfo.OriginModelName, nil).RetryTimes
+	retryParam.RetryLimit = common.GetPointer(retryLimit)
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	for ; retryParam.GetRetry() <= retryLimit; retryParam.IncreaseRetry() {
 		var channel *model.Channel
 
 		// Same rule as the sync path: never start a new upstream attempt for a
@@ -661,6 +685,11 @@ func RelayTask(c *gin.Context) {
 		}
 
 		addUsedChannel(c, channel.Id)
+		retryPolicy := service.ResolveRetryPolicy(relayInfo.OriginModelName, channel)
+		if retryPolicy.RetryTimes > retryLimit {
+			retryLimit = retryPolicy.RetryTimes
+			retryParam.SetRetryLimit(retryLimit)
+		}
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
 			if common.IsRequestBodyTooLargeError(bodyErr) || errors.Is(bodyErr, common.ErrRequestBodyTooLarge) {
@@ -684,10 +713,11 @@ func RelayTask(c *gin.Context) {
 				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode))
 		}
 
-		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
+		remainingRetry := retryPolicy.RetryTimes - retryParam.GetRetry()
+		if !shouldRetryTaskRelay(c, channel.Id, taskErr, remainingRetry) {
 			break
 		}
-		if !waitBeforeRetry(c, relayInfo, taskErr.StatusCode, common.RetryTimes-retryParam.GetRetry()) {
+		if !waitBeforeRetry(c, relayInfo, taskErr.StatusCode, remainingRetry, retryPolicy.RetryInterval) {
 			break
 		}
 	}

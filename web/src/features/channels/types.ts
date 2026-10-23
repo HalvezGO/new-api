@@ -88,6 +88,8 @@ export interface ChannelSettings {
   system_prompt_override?: boolean
   http_protocol?: 'auto' | 'http1' | string
   http2_connection_shards?: number
+  retry_times?: number
+  retry_interval?: number
 }
 
 export interface ChannelOtherSettings {

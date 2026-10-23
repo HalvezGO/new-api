@@ -3,6 +3,7 @@ package model
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/stretchr/testify/assert"
@@ -41,12 +42,60 @@ func TestChannelValidateSettingsRejectsInvalidHTTPTransport(t *testing.T) {
 	}
 }
 
+func TestChannelValidateSettingsRejectsInvalidRetryPolicy(t *testing.T) {
+	validTimes := 3
+	validInterval := 1500
+	invalidTimes := common.MaxRetryTimes + 1
+	invalidInterval := common.MaxRetryInterval + 1
+
+	tests := []struct {
+		name          string
+		retryTimes    *int
+		retryInterval *int
+		wantErr       string
+	}{
+		{
+			name:          "in-range values are valid",
+			retryTimes:    &validTimes,
+			retryInterval: &validInterval,
+		},
+		{
+			name:       "retry times above the maximum rejected",
+			retryTimes: &invalidTimes,
+			wantErr:    "retry_times",
+		},
+		{
+			name:          "retry interval above the maximum rejected",
+			retryInterval: &invalidInterval,
+			wantErr:       "retry_interval",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			channel := &Channel{}
+			channel.SetSetting(dto.ChannelSettings{
+				RetryTimes:    tt.retryTimes,
+				RetryInterval: tt.retryInterval,
+			})
+
+			err := channel.ValidateSettings()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestNormalizeModelsWithPrefix(t *testing.T) {
 	tests := []struct {
-		name      string
-		models    string
-		prefix    string
-		expected  string
+		name     string
+		models   string
+		prefix   string
+		expected string
 	}{
 		{
 			name:     "no prefix leaves models unchanged",

@@ -23,6 +23,13 @@ type ChannelSettings struct {
 	// HTTP2ConnectionShards spreads HTTP/2 traffic across N independent transports
 	// (1-8). Zero/unset means 1. Ignored when HTTPProtocol is "http1".
 	HTTP2ConnectionShards int `json:"http2_connection_shards,omitempty"`
+	// RetryTimes overrides the global retry count when this channel fails.
+	// Nil inherits the per-model override, then the global option.
+	RetryTimes *int `json:"retry_times,omitempty"`
+	// RetryInterval overrides the global retry interval in milliseconds when
+	// this channel fails. Nil inherits the per-model override, then the global
+	// option.
+	RetryInterval *int `json:"retry_interval,omitempty"`
 }
 
 const (

@@ -158,6 +158,7 @@ func InitOptionMap() {
 	common.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(common.QuotaPerUnit, 'f', -1, 64)
 	common.OptionMap["RetryTimes"] = strconv.Itoa(common.RetryTimes)
 	common.OptionMap["RetryInterval"] = strconv.Itoa(common.RetryInterval)
+	common.OptionMap["RetryModelOverrides"] = operation_setting.RetryModelOverridesToJSONString()
 	common.OptionMap["InProgressLogEnabled"] = strconv.FormatBool(common.InProgressLogEnabled)
 	common.OptionMap["DataExportInterval"] = strconv.Itoa(common.DataExportInterval)
 	common.OptionMap["DataExportDefaultTime"] = common.DataExportDefaultTime
@@ -231,6 +232,9 @@ func validateOptionValue(key string, value string) error {
 		if v < 0 || v > maxValue {
 			return fmt.Errorf("%s must be between 0 and %d", key, maxValue)
 		}
+	}
+	if key == operation_setting.RetryModelOverridesOptionKey {
+		return operation_setting.ValidateRetryModelOverrides(value)
 	}
 	return nil
 }
@@ -590,6 +594,8 @@ func updateOptionMap(key string, value string) (err error) {
 		common.RetryTimes = parseRetryOptionInt(key, value, common.MaxRetryTimes)
 	case "RetryInterval":
 		common.RetryInterval = parseRetryOptionInt(key, value, common.MaxRetryInterval)
+	case "RetryModelOverrides":
+		err = operation_setting.UpdateRetryModelOverridesFromJSONString(value)
 	case "InProgressLogEnabled":
 		common.InProgressLogEnabled = value == "true"
 	case "DataExportInterval":

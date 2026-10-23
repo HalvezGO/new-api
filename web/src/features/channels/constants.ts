@@ -250,6 +250,10 @@ export const ERROR_MESSAGES = {
     'HTTP/2 connection shards must be between 1 and 8',
   INVALID_HTTP1_WITH_SHARDS:
     'HTTP/2 connection shards must be 1 when HTTP/1.1 is selected',
+  INVALID_RETRY_TIMES:
+    'Retry times must be an integer between 0 and 100, or empty to inherit',
+  INVALID_RETRY_INTERVAL:
+    'Retry interval must be an integer between 0 and 30000 milliseconds, or empty to inherit',
   CREATE_FAILED: 'Failed to create channel',
   UPDATE_FAILED: 'Failed to update channel',
   DELETE_FAILED: 'Failed to delete channel',

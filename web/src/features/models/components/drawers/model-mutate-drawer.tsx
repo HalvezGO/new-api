@@ -328,6 +328,7 @@ export function ModelMutateDrawer({
       RetryTimes: 0,
       RetryInterval: 0,
       RetryIntervalStatusCodes: '429',
+      RetryModelOverrides: '{}',
       ChannelDisableThreshold: '',
       AutomaticDisableChannelEnabled: false,
       AutomaticEnableChannelEnabled: false,

@@ -993,6 +993,12 @@ func (channel *Channel) ValidateSettings() error {
 	if err := channelParams.ValidateHTTPTransport(); err != nil {
 		return err
 	}
+	if channelParams.RetryTimes != nil && (*channelParams.RetryTimes < 0 || *channelParams.RetryTimes > common.MaxRetryTimes) {
+		return fmt.Errorf("invalid channel retry_times: %d", *channelParams.RetryTimes)
+	}
+	if channelParams.RetryInterval != nil && (*channelParams.RetryInterval < 0 || *channelParams.RetryInterval > common.MaxRetryInterval) {
+		return fmt.Errorf("invalid channel retry_interval: %d", *channelParams.RetryInterval)
+	}
 	channelOtherSettings := &dto.ChannelOtherSettings{}
 	if channel.OtherSettings != "" {
 		err := common.UnmarshalJsonStr(channel.OtherSettings, channelOtherSettings)

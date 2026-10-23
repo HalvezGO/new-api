@@ -74,6 +74,10 @@ const MODELS_SECTIONS = [
           RetryTimes: settings.RetryTimes,
           RetryInterval: settings.RetryInterval,
           RetryIntervalStatusCodes: settings.RetryIntervalStatusCodes,
+          RetryModelOverrides: formatJsonForEditor(
+            settings.RetryModelOverrides,
+            '{}'
+          ),
           ChannelDisableThreshold: settings.ChannelDisableThreshold,
           AutomaticDisableChannelEnabled:
             settings.AutomaticDisableChannelEnabled,
