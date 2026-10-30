@@ -157,17 +157,24 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		defer stopKeepAlive()
 	}
 
-	if newAPIError = relay.PrepareRequestBilling(c, relayInfo); newAPIError != nil {
+	if newAPIError = relay.PrepareRequestBilling(c, relayInfo, func() {
+		relayInfo.ConsumeLogId = service.RecordPendingConsumeLog(c, relayInfo)
+	}); newAPIError != nil {
+		// Pricing succeeded and the pending row exists when pre-consume failed;
+		// settle that row as failed before returning, like the pre-refactor path.
+		if relayInfo.ConsumeLogId > 0 {
+			newAPIError = service.NormalizeViolationFeeError(newAPIError)
+			service.MarkConsumeLogFailed(c, relayInfo, newAPIError)
+		}
 		return
 	}
 	defer func() {
 		newAPIError = relay.RefundFailedRequestBilling(c, relayInfo, newAPIError)
 	}()
 
-	// In-progress consume log row: written after pricing/pre-consume so those
-	// failures keep today's no-row behavior, and before the retry loop so every
-	// upstream failure can be folded into a single request row.
-	relayInfo.ConsumeLogId = service.RecordPendingConsumeLog(c, relayInfo)
+	// The pending row was opened by the pricing hook above, so it exists for free
+	// models and survives a pre-consume failure. From here on, failures during the
+	// retry loop are folded into that single row.
 	if relayInfo.ConsumeLogId > 0 {
 		defer func() {
 			if newAPIError != nil {

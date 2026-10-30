@@ -39,6 +39,11 @@ func TestBuildRequestPolicyAcceptsRetryIntervalAndModelOverrides(t *testing.T) {
 	options["RetryModelOverrides"] = `{"gpt-4o":{"retry_times":101}}`
 	_, err = BuildRequestPolicy(options)
 	require.Error(t, err)
+
+	options["RetryModelOverrides"] = "{}"
+	options["RetryTimes"] = strconv.Itoa(common.MaxRetryTimes + 1)
+	_, err = BuildRequestPolicy(options)
+	require.Error(t, err)
 }
 
 func TestRequestPolicyDatabaseMatrix(t *testing.T) {

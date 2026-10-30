@@ -22,7 +22,12 @@ import (
 // PrepareRequestBilling estimates and reserves one request's charge. Transports
 // provide the current request body through BodyStorage or BillingRequestInput;
 // channel retries retain the resulting billing session and pricing snapshot.
-func PrepareRequestBilling(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
+//
+// afterPricing, when provided, runs after pricing succeeded but before the
+// free-model shortcut and pre-consume. The relay loop uses it to open the
+// in-progress consume-log row at the same point the pre-refactor flow did, so
+// free models and pre-consume failures still get a row.
+func PrepareRequestBilling(c *gin.Context, info *relaycommon.RelayInfo, afterPricing ...func()) *types.NewAPIError {
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
 	meta := &types.TokenCountMeta{TokenType: types.TokenTypeTokenizer}
 	if info.Request != nil && (needSensitiveCheck || constant.CountToken) {
@@ -59,6 +64,11 @@ func PrepareRequestBilling(c *gin.Context, info *relaycommon.RelayInfo) *types.N
 	priceData, err := helper.ModelPriceHelper(c, info, tokens, meta)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithStatusCode(http.StatusBadRequest))
+	}
+	for _, hook := range afterPricing {
+		if hook != nil {
+			hook()
+		}
 	}
 	if priceData.FreeModel {
 		logger.LogInfo(c, common.LogText("model %s is free, skipping pre-consume", info.OriginModelName))

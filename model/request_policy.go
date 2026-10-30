@@ -130,8 +130,8 @@ func BuildRequestPolicy(options map[string]string) (*RequestPolicySnapshot, erro
 		return nil, err
 	}
 	snapshot.RetryTimes, err = strconv.Atoi(raw["RetryTimes"])
-	if err != nil || snapshot.RetryTimes < 0 || snapshot.RetryTimes == math.MaxInt {
-		return nil, fmt.Errorf("retry times must be a non-negative integer with room for the initial attempt")
+	if err != nil || snapshot.RetryTimes < 0 || snapshot.RetryTimes > common.MaxRetryTimes || snapshot.RetryTimes == math.MaxInt {
+		return nil, fmt.Errorf("retry times must be an integer between 0 and %d", common.MaxRetryTimes)
 	}
 	retryInterval, err := strconv.Atoi(raw["RetryInterval"])
 	if err != nil || retryInterval < 0 || retryInterval > common.MaxRetryInterval {
