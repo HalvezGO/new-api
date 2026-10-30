@@ -202,6 +202,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	retryParam.RetryLimit = common.GetPointer(retryLimit)
 
 	for ; retryParam.GetRetry() <= retryLimit; retryParam.IncreaseRetry() {
+		// Check before every attempt, including the first: a client that already
+		// hung up must not cause a fresh upstream call.
+		if c.Request.Context().Err() != nil {
+			newAPIError = types.NewClientGoneError(c.Request.Context().Err())
+			logger.LogInfo(c, "client disconnected before retry attempt, stopping")
+			break
+		}
 		relayInfo.StreamStatus = nil
 		relayInfo.PerformanceBusinessRejection = false
 		relayInfo.PerformanceOutputTokens = 0
