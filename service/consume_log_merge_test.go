@@ -7,12 +7,27 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func testLogOther(values map[string]any) *model.LogOther {
+	other := model.NewLogOther()
+	for key, value := range values {
+		if key == "admin_info" {
+			if admin, ok := value.(map[string]any); ok {
+				other.MergeAdmin(admin)
+			}
+			continue
+		}
+		other.SetPublic(key, value)
+	}
+	return other
+}
 
 func newStubChannelError() types.ChannelError {
 	return types.ChannelError{
@@ -43,23 +58,25 @@ func TestBuildFailedLogOtherFields(t *testing.T) {
 	AppendRetryFailure(relayInfo, newStubChannelError(), newStubNewAPIError(429))
 
 	other := buildFailedLogOther(newStubContext(), relayInfo, nil)
+	snapshot := other.Snapshot()
 
-	assert.Equal(t, false, other["in_progress"])
-	assert.Equal(t, "/v1/chat/completions", other["request_path"])
-	assert.Equal(t, "status_code=429, upstream returned status: too many requests", other["failure_reason"])
-	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	assert.Equal(t, false, snapshot["in_progress"])
+	assert.Equal(t, "/v1/chat/completions", snapshot["request_path"])
+	assert.Equal(t, "status_code=429, upstream returned status: too many requests", snapshot["failure_reason"])
+	adminInfo, ok := snapshot["admin_info"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, []string{"12", "37"}, adminInfo["use_channel"])
 	assert.Equal(t, 2, adminInfo["retry_attempts"])
-	assert.Len(t, other["retry_failures"], 1)
+	assert.Len(t, snapshot["retry_failures"], 1)
 }
 
 func TestBuildFailedLogOtherWithoutRetries(t *testing.T) {
 	other := buildFailedLogOther(newStubContext(), &relaycommon.RelayInfo{}, newStubNewAPIError(503))
+	snapshot := other.Snapshot()
 
-	assert.Contains(t, other, "failure_reason")
-	assert.NotContains(t, other, "retry_failures")
-	assert.Contains(t, other, "request_path")
+	assert.Contains(t, snapshot, "failure_reason")
+	assert.NotContains(t, snapshot, "retry_failures")
+	assert.Contains(t, snapshot, "request_path")
 }
 
 // A canceled client request must be distinguishable from an upstream failure in
@@ -72,9 +89,10 @@ func TestBuildFailedLogOtherMarksClientGone(t *testing.T) {
 	)
 
 	other := buildFailedLogOther(newStubContext(), &relaycommon.RelayInfo{}, clientGoneErr)
+	snapshot := other.Snapshot()
 
-	assert.Equal(t, true, other["client_gone"])
-	assert.Contains(t, other, "failure_reason")
+	assert.Equal(t, true, snapshot["client_gone"])
+	assert.Contains(t, snapshot, "failure_reason")
 }
 
 func TestMergeRetryFailuresIntoOther(t *testing.T) {
@@ -83,16 +101,17 @@ func TestMergeRetryFailuresIntoOther(t *testing.T) {
 	relayInfo.LastRetryWaitMs = 800
 	AppendRetryFailure(relayInfo, newStubChannelError(), newStubNewAPIError(429))
 
-	other := map[string]interface{}{"model_ratio": 1.0}
+	other := testLogOther(map[string]any{"model_ratio": 1.0})
 	mergeRetryFailures(other, relayInfo)
-	assert.Len(t, other["retry_failures"], 1)
-	assert.NotContains(t, other, "retry_failures_truncated")
+	snapshot := other.Snapshot()
+	assert.Len(t, snapshot["retry_failures"], 1)
+	assert.NotContains(t, snapshot, "retry_failures_truncated")
 }
 
 func TestMergeRetryFailuresSkipsEmpty(t *testing.T) {
-	other := map[string]interface{}{"model_ratio": 1.0}
+	other := testLogOther(map[string]any{"model_ratio": 1.0})
 	mergeRetryFailures(other, &relaycommon.RelayInfo{})
-	assert.NotContains(t, other, "retry_failures")
+	assert.NotContains(t, other.Snapshot(), "retry_failures")
 }
 
 func TestMergeRetryFailuresFlagsTruncated(t *testing.T) {
@@ -101,10 +120,11 @@ func TestMergeRetryFailuresFlagsTruncated(t *testing.T) {
 		relayInfo.RetryIndex = i
 		AppendRetryFailure(relayInfo, newStubChannelError(), newStubNewAPIError(429))
 	}
-	other := map[string]interface{}{}
+	other := model.NewLogOther()
 	mergeRetryFailures(other, relayInfo)
-	assert.Len(t, other["retry_failures"], relaycommon.MaxRetryFailureRecords)
-	assert.Equal(t, true, other["retry_failures_truncated"])
+	snapshot := other.Snapshot()
+	assert.Len(t, snapshot["retry_failures"], relaycommon.MaxRetryFailureRecords)
+	assert.Equal(t, true, snapshot["retry_failures_truncated"])
 }
 
 func TestMergeRetryFailuresStampsRetryAttempts(t *testing.T) {
@@ -112,12 +132,13 @@ func TestMergeRetryFailuresStampsRetryAttempts(t *testing.T) {
 	relayInfo.RetryIndex = 2
 	AppendRetryFailure(relayInfo, newStubChannelError(), newStubNewAPIError(429))
 	// Existing admin info (use_channel) must survive the merge.
-	other := map[string]interface{}{
-		"admin_info": map[string]interface{}{"use_channel": []int{12, 37}},
-	}
+	other := testLogOther(map[string]any{
+		"admin_info": map[string]any{"use_channel": []int{12, 37}},
+	})
 	mergeRetryFailures(other, relayInfo)
 
-	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	snapshot := other.Snapshot()
+	adminInfo, ok := snapshot["admin_info"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, 3, adminInfo["retry_attempts"])
 	assert.Equal(t, []int{12, 37}, adminInfo["use_channel"])
@@ -127,9 +148,10 @@ func TestMergeRetryFailuresLeavesSingleAttemptAlone(t *testing.T) {
 	relayInfo := &relaycommon.RelayInfo{}
 	relayInfo.RetryIndex = 0
 	AppendRetryFailure(relayInfo, newStubChannelError(), newStubNewAPIError(429))
-	other := map[string]interface{}{}
+	other := model.NewLogOther()
 	mergeRetryFailures(other, relayInfo)
 
-	require.Len(t, other["retry_failures"], 1)
-	assert.NotContains(t, other, "admin_info")
+	snapshot := other.Snapshot()
+	require.Len(t, snapshot["retry_failures"], 1)
+	assert.NotContains(t, snapshot, "admin_info")
 }

@@ -105,8 +105,9 @@ describe('RetryModelOverridesEditor', () => {
     )
 
     const comboboxes = screen.getAllByRole('combobox')
-    fireEvent.pointerDown(comboboxes[1])
-    fireEvent.focus(comboboxes[1])
+    const openButtons = screen.getAllByRole('button', { name: 'Open' })
+    fireEvent.click(openButtons[1])
+    expect(comboboxes).toHaveLength(2)
 
     expect(
       screen.queryByRole('option', { name: 'model-a' })

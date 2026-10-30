@@ -20,23 +20,23 @@ func TestGetUserLogsStatusFilter(t *testing.T) {
 	updated, err := UpdateConsumeLogFinal(testGinContext(), 1, completedId, RecordConsumeLogParams{
 		ModelName: "m2",
 		Quota:     10,
-		Other:     map[string]interface{}{},
+		Other:     NewLogOther(),
 	})
 	require.NoError(t, err)
 	require.True(t, updated)
 
-	all, total, err := GetUserLogs(1, LogTypeConsume, 0, 0, "", "", 0, 100, "", "", "", -1)
+	all, total, err := GetUserLogs(1, LogFilter{Type: LogTypeConsume}, 0, 100)
 	require.NoError(t, err)
 	assert.EqualValues(t, 2, total)
 	assert.Len(t, all, 2)
 
-	pendingOnly, total, err := GetUserLogs(1, LogTypeConsume, 0, 0, "", "", 0, 100, "", "", "", LogStatusInProgress)
+	pendingOnly, total, err := GetUserLogs(1, LogFilter{Type: LogTypeConsume, Status: common.GetPointer(LogStatusInProgress)}, 0, 100)
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, total)
 	require.Len(t, pendingOnly, 1)
 	assert.EqualValues(t, LogStatusInProgress, pendingOnly[0].Status)
 
-	completedOnly, total, err := GetUserLogs(1, LogTypeConsume, 0, 0, "", "", 0, 100, "", "", "", LogStatusCompleted)
+	completedOnly, total, err := GetUserLogs(1, LogFilter{Type: LogTypeConsume, Status: common.GetPointer(LogStatusCompleted)}, 0, 100)
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, total)
 	require.Len(t, completedOnly, 1)
@@ -56,7 +56,7 @@ func TestSumUsedQuotaExcludesNonFinalLogs(t *testing.T) {
 		ModelName: "m2",
 		Group:     "default",
 		Quota:     100,
-		Other:     map[string]interface{}{},
+		Other:     NewLogOther(),
 	})
 	require.NoError(t, err)
 	require.True(t, updated)

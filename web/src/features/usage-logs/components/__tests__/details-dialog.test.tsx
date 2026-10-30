@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { render, screen } from '@testing-library/react'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import type { UsageLog } from '../../data/schema'
 import { DetailsDialog } from '../dialogs/details-dialog'
@@ -54,11 +54,16 @@ function renderDialog(log: UsageLog) {
     <DetailsDialog
       log={log}
       isAdmin={false}
+      isRoot={false}
       open
       onOpenChange={() => undefined}
     />
   )
 }
+
+vi.mock('@/features/pricing/hooks/use-pricing-data', () => ({
+  usePricingData: () => ({ models: [] }),
+}))
 
 describe('usage log details dialog failure reason', () => {
   test('shows a friendly label instead of the raw error when the client disconnected', () => {

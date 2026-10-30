@@ -11,7 +11,7 @@ import (
 
 // When the client hangs up, retrying on another channel cannot deliver the
 // response anywhere; it only burns upstream tokens for a dead request.
-func TestShouldRetryStopsWhenClientIsGone(t *testing.T) {
+func TestDecideRelayRetryStopsWhenClientIsGone(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := newRetryIntervalTestContext(t, ctx)
 	cancel()
@@ -22,13 +22,13 @@ func TestShouldRetryStopsWhenClientIsGone(t *testing.T) {
 		http.StatusInternalServerError,
 	)
 
-	assert.False(t, shouldRetry(c, clientGoneErr, 3),
+	assert.NotEqual(t, "retry", decideRelayRetry(c, clientGoneErr, 3).Action,
 		"a canceled client request must not be retried on another channel")
 }
 
 // The upstream call is canceled with the client, so the resulting error carries
 // context.Canceled even though the status code looks retryable.
-func TestShouldRetryStopsOnCanceledUpstreamError(t *testing.T) {
+func TestDecideRelayRetryStopsOnCanceledUpstreamError(t *testing.T) {
 	c := newRetryIntervalTestContext(t, nil)
 	err := types.NewErrorWithStatusCode(
 		context.Canceled,
@@ -36,11 +36,11 @@ func TestShouldRetryStopsOnCanceledUpstreamError(t *testing.T) {
 		http.StatusBadGateway,
 	)
 
-	assert.False(t, shouldRetry(c, err, 3))
+	assert.NotEqual(t, "retry", decideRelayRetry(c, err, 3).Action)
 }
 
 // An ordinary upstream failure must still be retried.
-func TestShouldRetryStillRetriesRealUpstreamFailures(t *testing.T) {
+func TestDecideRelayRetryStillRetriesRealUpstreamFailures(t *testing.T) {
 	c := newRetryIntervalTestContext(t, nil)
 	err := types.NewErrorWithStatusCode(
 		assert.AnError,
@@ -48,7 +48,7 @@ func TestShouldRetryStillRetriesRealUpstreamFailures(t *testing.T) {
 		http.StatusTooManyRequests,
 	)
 
-	assert.True(t, shouldRetry(c, err, 3))
+	assert.Equal(t, "retry", decideRelayRetry(c, err, 3).Action)
 }
 
 func TestIsClientGoneDetectsRequestContextCancellation(t *testing.T) {

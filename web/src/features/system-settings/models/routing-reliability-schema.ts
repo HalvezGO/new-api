@@ -50,7 +50,7 @@ type RetryModelOverridesError = {
   params?: Record<string, unknown>
 }
 
-function validateRetryModelOverrides(
+export function validateRetryModelOverrides(
   value: string
 ): RetryModelOverridesError | null {
   const trimmed = value.trim()

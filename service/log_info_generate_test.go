@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,11 +20,12 @@ func TestAppendStreamStatusMarksClientGone(t *testing.T) {
 	}
 	relayInfo.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, context.Canceled)
 
-	other := map[string]interface{}{}
+	other := model.NewLogOther()
 	appendStreamStatus(relayInfo, other)
 
-	assert.Equal(t, true, other["client_gone"])
-	streamStatus, ok := other["stream_status"].(map[string]interface{})
+	snapshot := other.Snapshot()
+	assert.Equal(t, true, snapshot["client_gone"])
+	streamStatus, ok := snapshot["stream_status"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "error", streamStatus["status"])
 	assert.Equal(t, "client_gone", streamStatus["end_reason"])
@@ -36,8 +38,8 @@ func TestAppendStreamStatusKeepsNormalEndUnmarked(t *testing.T) {
 	}
 	relayInfo.StreamStatus.SetEndReason(relaycommon.StreamEndReasonDone, nil)
 
-	other := map[string]interface{}{}
+	other := model.NewLogOther()
 	appendStreamStatus(relayInfo, other)
 
-	assert.NotContains(t, other, "client_gone")
+	assert.NotContains(t, other.Snapshot(), "client_gone")
 }

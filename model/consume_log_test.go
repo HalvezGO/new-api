@@ -19,6 +19,20 @@ func testGinContext() *gin.Context {
 	return c
 }
 
+func testLogOther(values map[string]any) *LogOther {
+	other := NewLogOther()
+	for key, value := range values {
+		if key == "admin_info" {
+			if admin, ok := value.(map[string]any); ok {
+				other.MergeAdmin(admin)
+			}
+			continue
+		}
+		other.SetPublic(key, value)
+	}
+	return other
+}
+
 func pendingParams() RecordConsumeLogParams {
 	return RecordConsumeLogParams{
 		ModelName:        "test-model",
@@ -31,9 +45,9 @@ func pendingParams() RecordConsumeLogParams {
 		Quota:            999,
 		PromptTokens:     999,
 		CompletionTokens: 999,
-		Other: map[string]interface{}{
+		Other: testLogOther(map[string]any{
 			"in_progress": true,
-		},
+		}),
 	}
 }
 
@@ -83,7 +97,7 @@ func TestUpdateConsumeLogFinalExportsQuotaDataWithUserId(t *testing.T) {
 		PromptTokens:     10,
 		CompletionTokens: 5,
 		CreatedAt:        requestStart,
-		Other:            map[string]interface{}{},
+		Other:            NewLogOther(),
 	})
 	require.NoError(t, err)
 	require.True(t, updated)
@@ -113,7 +127,7 @@ func TestUpdateConsumeLogFinalCapturesUpstreamRequestId(t *testing.T) {
 	c.Set(common.UpstreamRequestIdKey, "upstream-abc")
 	updated, err := UpdateConsumeLogFinal(c, 1, id, RecordConsumeLogParams{
 		ModelName: "test-model",
-		Other:     map[string]interface{}{},
+		Other:     NewLogOther(),
 	})
 	require.NoError(t, err)
 	require.True(t, updated)
@@ -133,7 +147,7 @@ func TestUpdateConsumeLogFailedCapturesUpstreamRequestId(t *testing.T) {
 	require.NoError(t, err)
 
 	c.Set(common.UpstreamRequestIdKey, "upstream-failed-abc")
-	updated, err := UpdateConsumeLogFailed(c, id, 3, 0, map[string]interface{}{})
+	updated, err := UpdateConsumeLogFailed(c, id, 3, 0, NewLogOther())
 	require.NoError(t, err)
 	require.True(t, updated)
 
@@ -196,9 +210,9 @@ func TestUpdateConsumeLogFailedKeepsTokensZero(t *testing.T) {
 	id, err := RecordPendingConsumeLog(testGinContext(), 1, pendingParams())
 	require.NoError(t, err)
 
-	updated, err := UpdateConsumeLogFailed(testGinContext(), id, 12, 7, map[string]interface{}{
+	updated, err := UpdateConsumeLogFailed(testGinContext(), id, 12, 7, testLogOther(map[string]any{
 		"failure_reason": "upstream 429",
-	})
+	}))
 	require.NoError(t, err)
 	assert.True(t, updated)
 

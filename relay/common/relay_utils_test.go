@@ -63,11 +63,11 @@ func TestGetFullRequestURL(t *testing.T) {
 			want:       "https://api.example.com/v2/chat/completions",
 		},
 		{
-			name:       "cloudflare gateway with /v4 in path triggers version strip",
-			baseURL:    "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai",
-			requestURL: "/v1/chat/completions",
+			name:        "cloudflare gateway with /v4 in path triggers version strip",
+			baseURL:     "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai",
+			requestURL:  "/v1/chat/completions",
 			channelType: constant.ChannelTypeOpenAI,
-			want:       "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai/chat/completions",
+			want:        "https://gateway.ai.cloudflare.com/client/v4/accounts/abc/ai/chat/completions",
 		},
 		{
 			name:       "base_url with /v1, requestURL without /v1 prefix",
@@ -163,7 +163,7 @@ func TestValidateMultipartDirectNormalizesImageField(t *testing.T) {
 	storedReq, err := GetTaskRequest(context)
 	require.NoError(t, err)
 	require.Equal(t, []string{"https://example.com/first.png"}, storedReq.Images)
-	require.Equal(t, constant.TaskActionGenerate, info.Action)
+	require.Equal(t, constant.TaskActionImageToVideo, info.Action)
 }
 
 // TestTaskDurationBounds guards the billing invariant that user-supplied
@@ -219,7 +219,7 @@ func TestTaskDurationBounds(t *testing.T) {
 		})
 		t.Run(tt.name+" (basic task request)", func(t *testing.T) {
 			context, info := newContext(t, tt.body)
-			taskErr := ValidateBasicTaskRequest(context, info, constant.TaskActionGenerate)
+			taskErr := ValidateBasicTaskRequest(context, info, constant.TaskActionImageToVideo)
 			if tt.wantErr {
 				require.NotNil(t, taskErr)
 				require.Equal(t, "invalid_seconds", taskErr.Code)

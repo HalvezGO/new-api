@@ -15,29 +15,29 @@ func TestUpdateInProgressConsumeLogOtherSkipsSettledRow(t *testing.T) {
 
 	id, err := RecordPendingConsumeLog(testGinContext(), 1, RecordConsumeLogParams{
 		ModelName: "first-token-model",
-		Other:     map[string]interface{}{"in_progress": true},
+		Other:     testLogOther(map[string]any{"in_progress": true}),
 	})
 	require.NoError(t, err)
 	require.NotZero(t, id)
 
-	updated, err := UpdateInProgressConsumeLogOther(id, map[string]interface{}{
+	updated, err := UpdateInProgressConsumeLogOther(id, testLogOther(map[string]any{
 		"in_progress": true,
 		"frt":         1500.0,
-	})
+	}))
 	require.NoError(t, err)
 	require.True(t, updated)
 
 	settled, err := UpdateConsumeLogFinal(testGinContext(), 1, id, RecordConsumeLogParams{
 		ModelName: "first-token-model",
-		Other:     map[string]interface{}{"in_progress": false, "frt": 1600.0},
+		Other:     testLogOther(map[string]any{"in_progress": false, "frt": 1600.0}),
 	})
 	require.NoError(t, err)
 	require.True(t, settled)
 
-	updated, err = UpdateInProgressConsumeLogOther(id, map[string]interface{}{
+	updated, err = UpdateInProgressConsumeLogOther(id, testLogOther(map[string]any{
 		"in_progress": true,
 		"frt":         9000.0,
-	})
+	}))
 	require.NoError(t, err)
 	assert.False(t, updated, "a settled row must never be rewritten by a late first-token update")
 

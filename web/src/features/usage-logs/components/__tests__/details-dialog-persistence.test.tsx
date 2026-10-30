@@ -36,6 +36,10 @@ vi.mock('@/lib/lobe-icon', () => ({
   getLobeIcon: () => null,
 }))
 
+vi.mock('@/features/pricing/hooks/use-pricing-data', () => ({
+  usePricingData: () => ({ models: [] }),
+}))
+
 function buildLog(overrides: Partial<UsageLog> = {}): UsageLog {
   return {
     id: 1,
@@ -70,7 +74,7 @@ function buildLog(overrides: Partial<UsageLog> = {}): UsageLog {
  * does when the query resolves again.
  */
 function DetailsCellHarness({ logs }: { logs: UsageLog[] }) {
-  const columns = useCommonLogsColumns(false)
+  const columns = useCommonLogsColumns(false, false)
   const table = useReactTable({
     data: logs,
     columns,

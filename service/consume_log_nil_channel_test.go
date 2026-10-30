@@ -43,7 +43,7 @@ func TestMarkConsumeLogFailedWithoutChannelMeta(t *testing.T) {
 
 	id, err := model.RecordPendingConsumeLog(sweepTestContext(), 1, model.RecordConsumeLogParams{
 		ModelName: "failed-nil-channel-meta-model",
-		Other:     map[string]interface{}{"in_progress": true},
+		Other:     testLogOther(map[string]any{"in_progress": true}),
 	})
 	require.NoError(t, err)
 	require.NotZero(t, id)

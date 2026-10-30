@@ -68,6 +68,11 @@ interface TimingMetricsCellProps {
   createdAt?: number
   className?: string
   /**
+   * Compact layout for the mobile card: labels flow horizontally instead of
+   * stacking.
+   */
+  compact?: boolean
+  /**
    * `bar` (default) draws a full-height color segment beside the labels,
    * matching the dense desktop table. `dot` swaps that segment for small
    * status dots inline with each label, matching the lighter-weight status
@@ -133,7 +138,13 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
   }
 
   const labels = (
-    <div className='flex min-h-8 min-w-0 flex-col justify-center gap-0.5 text-xs leading-tight'>
+    <div
+      className={cn(
+        'flex min-h-8 min-w-0 flex-col justify-center gap-0.5 text-xs leading-tight',
+        props.compact &&
+          'min-h-0 flex-row flex-wrap items-center gap-x-2.5 gap-y-1'
+      )}
+    >
       {showFirstToken && (
         <div className='flex items-baseline gap-1.5'>
           {indicator === 'dot' && (
@@ -200,6 +211,11 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
 
 interface StreamTpsCellProps {
   isStream: boolean
+  compact?: boolean
+  /** Task logs are asynchronous jobs; stream vs non-stream does not apply. */
+  isTask?: boolean
+  /** The task request returned its result inline, so it is a synchronous call. */
+  isSyncTask?: boolean
   tokensPerSecond?: number | null
   /**
    * Throughput over the generation window only (total duration minus the
@@ -247,6 +263,9 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
     }
   }
   let streamLabel = props.isStream ? t('Stream') : t('Non-stream')
+  if (props.isTask) {
+    streamLabel = props.isSyncTask ? t('Sync') : t('Async')
+  }
   if (isPending) {
     streamLabel = t('In progress')
   } else if (isFailed) {
@@ -259,6 +278,7 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
     <div
       className={cn(
         'flex shrink-0 flex-col items-start justify-center gap-0.5 text-xs leading-tight',
+        props.compact && 'flex-row flex-wrap items-center gap-1.5',
         props.className
       )}
     >
@@ -304,9 +324,12 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
           </TooltipProvider>
         )}
       </span>
-      <span className='text-muted-foreground/60 px-0.5 tabular-nums'>
-        {tpsLabel}
-      </span>
+      {(!props.compact ||
+        (props.isStream && props.tokensPerSecond != null)) && (
+        <span className='text-muted-foreground/60 px-0.5 tabular-nums'>
+          {tpsLabel}
+        </span>
+      )}
     </div>
   )
 }

@@ -30,7 +30,7 @@ func TestSweepStaleInProgressLogsSkipsClickHouse(t *testing.T) {
 	model.DB.Exec("DELETE FROM logs")
 	stale, err := model.RecordPendingConsumeLog(sweepTestContext(), 1, model.RecordConsumeLogParams{
 		ModelName: "ch-sweep-model",
-		Other:     map[string]interface{}{"in_progress": true},
+		Other:     testLogOther(map[string]any{"in_progress": true}),
 	})
 	require.NoError(t, err)
 	require.NotZero(t, stale)
@@ -89,7 +89,7 @@ func TestRecordPendingConsumeLogRecordsServingNode(t *testing.T) {
 	assert.Equal(t, "pending-node", pendingConsumeLogNodeName(reloaded.Other))
 }
 
-func recordRecoveryTestRow(t *testing.T, other map[string]interface{}) int {
+func recordRecoveryTestRow(t *testing.T, other *model.LogOther) int {
 	t.Helper()
 	logID, err := model.RecordPendingConsumeLog(sweepTestContext(), 1, model.RecordConsumeLogParams{
 		ModelName: "recovery-model",
@@ -109,9 +109,9 @@ func TestRecoverOrphanedInProgressLogsMarksRowsFromThisNodesPastRun(t *testing.T
 	common.NodeName = "recovery-node"
 	t.Cleanup(func() { common.NodeName = originalNode })
 
-	logID := recordRecoveryTestRow(t, map[string]interface{}{
-		"admin_info": map[string]interface{}{"node_name": common.NodeName},
-	})
+	logID := recordRecoveryTestRow(t, testLogOther(map[string]any{
+		"admin_info": map[string]any{"node_name": common.NodeName},
+	}))
 
 	recoverOrphanedInProgressLogs()
 
@@ -125,9 +125,9 @@ func TestRecoverOrphanedInProgressLogsKeepsLiveNodeRows(t *testing.T) {
 	model.DB.Exec("DELETE FROM system_instances")
 	require.NoError(t, model.UpsertSystemInstance("live-node", nil, common.StartTime, common.GetTimestamp()))
 
-	logID := recordRecoveryTestRow(t, map[string]interface{}{
-		"admin_info": map[string]interface{}{"node_name": "live-node"},
-	})
+	logID := recordRecoveryTestRow(t, testLogOther(map[string]any{
+		"admin_info": map[string]any{"node_name": "live-node"},
+	}))
 
 	recoverOrphanedInProgressLogs()
 
@@ -144,9 +144,9 @@ func TestRecoverOrphanedInProgressLogsMarksRowsFromStaleNodes(t *testing.T) {
 	staleSeen := common.GetTimestamp() - model.SystemInstanceStaleAfterSeconds - 60
 	require.NoError(t, model.UpsertSystemInstance("crashed-node", nil, staleSeen, staleSeen))
 
-	logID := recordRecoveryTestRow(t, map[string]interface{}{
-		"admin_info": map[string]interface{}{"node_name": "crashed-node"},
-	})
+	logID := recordRecoveryTestRow(t, testLogOther(map[string]any{
+		"admin_info": map[string]any{"node_name": "crashed-node"},
+	}))
 
 	recoverOrphanedInProgressLogs()
 
@@ -165,7 +165,7 @@ func TestRecoverOrphanedInProgressLogsKeepsRowsFromCurrentRun(t *testing.T) {
 
 	logID, err := model.RecordPendingConsumeLog(sweepTestContext(), 1, model.RecordConsumeLogParams{
 		ModelName: "recovery-live-model",
-		Other:     map[string]interface{}{"admin_info": map[string]interface{}{"node_name": common.NodeName}},
+		Other:     testLogOther(map[string]any{"admin_info": map[string]any{"node_name": common.NodeName}}),
 	})
 	require.NoError(t, err)
 	require.NotZero(t, logID)

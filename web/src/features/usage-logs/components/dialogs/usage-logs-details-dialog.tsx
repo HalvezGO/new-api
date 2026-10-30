@@ -27,7 +27,7 @@ import { DetailsDialog } from './details-dialog'
 export function UsageLogsDetailsDialog() {
   const { detailsLog, detailsDialogOpen, setDetailsDialogOpen } =
     useUsageLogsContext()
-  const { isAdminView } = useLogsViewScope()
+  const { isAdminView, isRootView } = useLogsViewScope()
 
   if (!detailsLog) return null
 
@@ -35,6 +35,7 @@ export function UsageLogsDetailsDialog() {
     <DetailsDialog
       log={detailsLog}
       isAdmin={isAdminView}
+      isRoot={isRootView}
       open={detailsDialogOpen}
       onOpenChange={setDetailsDialogOpen}
     />

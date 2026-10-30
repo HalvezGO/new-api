@@ -39,20 +39,16 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 	if relayInfo.RelayFormat == types.RelayFormatOpenAIRealtime {
 		return 0
 	}
-	other := map[string]interface{}{
-		"in_progress": true,
-		"request_path": func() string {
-			if c != nil && c.Request != nil && c.Request.URL != nil {
-				return c.Request.URL.Path
-			}
-			return ""
-		}(),
+	other := model.NewLogOther()
+	other.SetPublic("in_progress", true)
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		other.SetPublic("request_path", c.Request.URL.Path)
 	}
 	if common.NodeName != "" {
 		// Record the serving node so a restart can tell rows left behind by a
 		// dead process from requests still running elsewhere. Admin-only, like the
 		// rest of admin_info (stripped from user-facing log payloads).
-		other["admin_info"] = map[string]interface{}{"node_name": common.NodeName}
+		other.SetAdmin("node_name", common.NodeName)
 	}
 	id, err := model.RecordPendingConsumeLog(c, relayInfo.UserId, model.RecordConsumeLogParams{
 		ModelName: relayInfo.OriginModelName,
@@ -80,7 +76,7 @@ func RecordPendingConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo) i
 			if frtMs <= 0 {
 				return
 			}
-			other["frt"] = frtMs
+			other.SetPublic("frt", frtMs)
 			gopool.Go(func() {
 				if _, updateErr := model.UpdateInProgressConsumeLogOther(id, other); updateErr != nil {
 					common.SysLog("update in-progress consume log first-token time failed: " + updateErr.Error())
@@ -125,41 +121,38 @@ func finalizeConsumeLog(c *gin.Context, relayInfo *relaycommon.RelayInfo, userId
 // request path, the per-attempt retry history, the last failure reason, and the
 // channel chain (admin-only) so the row stays as informative as the error logs
 // it replaced.
-func buildFailedLogOther(c *gin.Context, relayInfo *relaycommon.RelayInfo, err *types.NewAPIError) map[string]interface{} {
-	other := map[string]interface{}{
-		"in_progress": false,
-	}
+func buildFailedLogOther(c *gin.Context, relayInfo *relaycommon.RelayInfo, err *types.NewAPIError) *model.LogOther {
+	other := model.NewLogOther()
+	other.SetPublic("in_progress", false)
 	if c != nil && c.Request != nil && c.Request.URL != nil && c.Request.URL.Path != "" {
-		other["request_path"] = c.Request.URL.Path
+		other.SetPublic("request_path", c.Request.URL.Path)
 	}
 	mergeRetryFailures(other, relayInfo)
 	if relayInfo.HasSendResponse() {
 		// The stream had already produced its first token before failing; keep
 		// that latency so the failed row stays comparable with completed rows.
-		other["frt"] = float64(relayInfo.FirstResponseTime.UnixMilli() - relayInfo.StartTime.UnixMilli())
+		other.SetPublic("frt", float64(relayInfo.FirstResponseTime.UnixMilli()-relayInfo.StartTime.UnixMilli()))
 	}
 	if c != nil {
 		if useChannel := c.GetStringSlice("use_channel"); len(useChannel) > 0 {
-			other["admin_info"] = map[string]interface{}{
-				"use_channel":    useChannel,
-				"retry_attempts": len(useChannel),
-			}
+			other.SetAdmin("use_channel", useChannel)
+			other.SetAdmin("retry_attempts", len(useChannel))
 		}
 	}
 	if err != nil && types.IsClientGone(err) {
 		// The caller hung up: report that instead of the last upstream failure,
 		// so the row is not read as a provider problem.
-		other["client_gone"] = true
-		other["failure_reason"] = common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())
+		other.SetPublic("client_gone", true)
+		other.SetPublic("failure_reason", common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode()))
 		return other
 	}
 	if len(relayInfo.ConsumeLogRetryFailures) > 0 {
 		last := relayInfo.ConsumeLogRetryFailures[len(relayInfo.ConsumeLogRetryFailures)-1]
-		other["failure_reason"] = last.Reason
+		other.SetPublic("failure_reason", last.Reason)
 		return other
 	}
 	if err != nil {
-		other["failure_reason"] = common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode())
+		other.SetPublic("failure_reason", common.LocalLogPreview(err.MaskSensitiveErrorWithStatusCode()))
 	}
 	return other
 }
@@ -211,25 +204,20 @@ func AppendRetryFailure(relayInfo *relaycommon.RelayInfo, channelError types.Cha
 }
 
 // mergeRetryFailures folds accumulated per-attempt failure summaries into a log
-// row's other map. Failed attempts belong to the request, so they ride on the
-// single row instead of one error-log row each. It also stamps the retry
+// row's other payload. Failed attempts belong to the request, so they ride on
+// the single row instead of one error-log row each. It also stamps the retry
 // attempt count so the logs list can show a "retried N" marker on the row.
-func mergeRetryFailures(other map[string]interface{}, relayInfo *relaycommon.RelayInfo) {
+func mergeRetryFailures(other *model.LogOther, relayInfo *relaycommon.RelayInfo) {
 	if other == nil || relayInfo == nil || len(relayInfo.ConsumeLogRetryFailures) == 0 {
 		return
 	}
-	other["retry_failures"] = relayInfo.ConsumeLogRetryFailures
+	other.SetPublic("retry_failures", relayInfo.ConsumeLogRetryFailures)
 	if relayInfo.ConsumeLogRetryFailuresTruncated {
-		other["retry_failures_truncated"] = true
+		other.SetPublic("retry_failures_truncated", true)
 	}
 	attempts := relayInfo.ConsumeLogRetryFailures[len(relayInfo.ConsumeLogRetryFailures)-1].RetryIndex + 1
 	if attempts > 1 {
-		adminInfo, ok := other["admin_info"].(map[string]interface{})
-		if !ok || adminInfo == nil {
-			adminInfo = map[string]interface{}{}
-			other["admin_info"] = adminInfo
-		}
-		adminInfo["retry_attempts"] = attempts
+		other.SetAdmin("retry_attempts", attempts)
 	}
-	logger.LogDebug(nil, fmt.Sprintf("merged %d retry failures into consume log", len(relayInfo.ConsumeLogRetryFailures)))
+	logger.LogDebug(nil, "merged %d retry failures into consume log", len(relayInfo.ConsumeLogRetryFailures))
 }
