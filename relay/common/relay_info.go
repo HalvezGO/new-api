@@ -76,8 +76,9 @@ type ChannelMeta struct {
 }
 
 // MaxRetryFailureRecords caps how many per-attempt failure summaries are folded
-// into a single request's consume log row.
-const MaxRetryFailureRecords = 20
+// into a single request's consume log row. It follows the same upper bound as
+// the configurable retry limit.
+const MaxRetryFailureRecords = common.MaxRetryTimes
 
 // RetryFailureRecord is one failed channel attempt of a request, stored on the
 // request's consume log row (other.retry_failures) instead of its own error log.

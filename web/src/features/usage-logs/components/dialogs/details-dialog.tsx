@@ -94,7 +94,7 @@ import {
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
 import { ResponseModelDetails } from '../model-badge'
 import { PluginAuthorLink } from '../plugin-author-link'
-import { RetryHistoryList } from '../retry-history-list'
+import { RetryHistoryDialog } from '../retry-history-dialog'
 import { DetailRow, DetailSection } from './log-detail-layout'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
@@ -749,10 +749,15 @@ export function DetailsDialog(props: DetailsDialogProps) {
           )}
 
           {retryFailures.length > 0 && (
-            <RetryHistoryList
-              failures={retryFailures}
-              truncated={other?.retry_failures_truncated}
-              isAdmin={props.isAdmin}
+            <DetailRow
+              label={t('Retry history')}
+              value={
+                <RetryHistoryDialog
+                  failures={retryFailures}
+                  truncated={other?.retry_failures_truncated}
+                  isAdmin={props.isAdmin}
+                />
+              }
             />
           )}
 
