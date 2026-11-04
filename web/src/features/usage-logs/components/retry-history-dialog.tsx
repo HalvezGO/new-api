@@ -28,6 +28,7 @@ import {
 } from '@/components/data-table'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
+import { useMediaQuery } from '@/hooks'
 
 import type { RetryFailureEntry } from '../types'
 
@@ -93,6 +94,7 @@ function RetryHistoryTable(props: {
   isAdmin: boolean
 }) {
   const { t } = useTranslation()
+  const isMobile = useMediaQuery('(max-width: 640px)')
 
   const columns = useMemo<ColumnDef<RetryFailureEntry>[]>(() => {
     const channelColumns: ColumnDef<RetryFailureEntry>[] = props.isAdmin
@@ -200,7 +202,7 @@ function RetryHistoryTable(props: {
         emptyContent={t('No data')}
         emptyCellClassName='text-muted-foreground h-16 text-center text-sm'
       />
-      <DataTablePagination table={table} compact />
+      <DataTablePagination table={table} compact={isMobile} />
     </div>
   )
 }

@@ -55,6 +55,10 @@ describe('usage log retry history dialog', () => {
       'No data': 'No data',
       'Total:': 'Total:',
       Page: 'Page',
+      'Rows per page': 'Rows per page',
+      'Go to first page': 'Go to first page',
+      'Go to last page': 'Go to last page',
+      'Go to page {{page}}': 'Go to page {{page}}',
       'Go to previous page': 'Go to previous page',
       'Go to next page': 'Go to next page',
     })
@@ -77,7 +81,7 @@ describe('usage log retry history dialog', () => {
     expect(dialog.getByText('Status Code')).toBeVisible()
     expect(dialog.getByText('upstream rejected attempt 0')).toBeVisible()
     expect(dialog.queryByText('upstream rejected attempt 10')).toBeNull()
-    expect(dialog.getByText('1 / 2')).toBeVisible()
+    expect(dialog.getByRole('combobox')).toBeVisible()
 
     await user.click(dialog.getByRole('button', { name: 'Go to next page' }))
 
@@ -85,7 +89,63 @@ describe('usage log retry history dialog', () => {
       await screen.findByText('upstream rejected attempt 10')
     ).toBeVisible()
     expect(screen.queryByText('upstream rejected attempt 0')).toBeNull()
-    expect(screen.getByText('2 / 2')).toBeVisible()
+  })
+
+  test('uses compact pagination on small screens', async () => {
+    const originalMatchMedia = window.matchMedia
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) =>
+        ({
+          matches: query.includes('max-width: 640px'),
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false,
+        }) as MediaQueryList,
+    })
+
+    try {
+      const user = userEvent.setup()
+      render(<RetryHistoryDialog failures={failures} isAdmin />)
+
+      await user.click(
+        screen.getByRole('button', { name: /Retried 12 attempts/ })
+      )
+
+      const dialog = within(await screen.findByRole('dialog'))
+      expect(dialog.queryByRole('combobox')).toBeNull()
+      expect(dialog.getByText('1 / 2')).toBeVisible()
+    } finally {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: originalMatchMedia,
+      })
+    }
+  })
+
+  test('changes the number of rows per page', async () => {
+    const user = userEvent.setup()
+    render(<RetryHistoryDialog failures={failures} isAdmin />)
+
+    await user.click(
+      screen.getByRole('button', { name: /Retried 12 attempts/ })
+    )
+
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.queryByText('upstream rejected attempt 10')).toBeNull()
+
+    await user.click(dialog.getByRole('combobox'))
+    await user.click(await screen.findByRole('option', { name: '20' }))
+
+    expect(
+      await dialog.findByText('upstream rejected attempt 10')
+    ).toBeVisible()
   })
 
   test('shows channel identity and the truncation note to admins', async () => {
