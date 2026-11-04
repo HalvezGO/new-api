@@ -117,6 +117,13 @@ type TestResult = {
   errorCode?: string
 }
 
+type DeleteIntent = 'single' | 'selected' | 'failed'
+
+type DeleteRequest = {
+  models: string[]
+  intent: DeleteIntent
+}
+
 type BatchProgress = {
   total: number
   completed: number
@@ -336,9 +343,8 @@ function ChannelTestDialogContent({
   const [removedModels, setRemovedModels] = useState<Set<string>>(
     () => new Set()
   )
-  const [isDeleteFailedDialogOpen, setIsDeleteFailedDialogOpen] =
-    useState(false)
-  const [isDeletingFailed, setIsDeletingFailed] = useState(false)
+  const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null)
+  const [isDeletingModels, setIsDeletingModels] = useState(false)
   const [failureDetails, setFailureDetails] =
     useState<FailureDetailsState | null>(null)
   const [pagination, setPagination] = useState({
@@ -399,8 +405,8 @@ function ChannelTestDialogContent({
     setIsBatchStopRequested(false)
     setBatchProgress(null)
     setRemovedModels(() => new Set())
-    setIsDeleteFailedDialogOpen(false)
-    setIsDeletingFailed(false)
+    setDeleteRequest(null)
+    setIsDeletingModels(false)
     setFailureDetails(null)
     setPagination({ pageIndex: 0, pageSize: 30 })
   }, [])
@@ -754,19 +760,48 @@ function ChannelTestDialogContent({
     })
   }, [successModels])
 
-  const handleDeleteFailedModels = useCallback(async () => {
-    const failed = models.filter(
-      (model) => testResults[model]?.status === 'error'
-    )
-    if (!failed.length) {
-      setIsDeleteFailedDialogOpen(false)
+  const requestDeleteModels = useCallback(
+    (targets: string[], intent: DeleteIntent) => {
+      const uniqueTargets = [
+        ...new Set(targets.map((model) => model.trim())),
+      ].filter(Boolean)
+      if (uniqueTargets.length === 0) return
+      setDeleteRequest({ models: uniqueTargets, intent })
+    },
+    []
+  )
+
+  const handleDeleteModels = useCallback(async () => {
+    const request = deleteRequest
+    if (!request || request.models.length === 0) {
+      setDeleteRequest(null)
       return
     }
 
-    const failedSet = new Set(failed)
-    const remaining = models.filter((model) => !failedSet.has(model))
+    const deleteSet = new Set(request.models)
+    const remaining = models.filter((model) => !deleteSet.has(model))
+    const isFailedDelete = request.intent === 'failed'
+    const isSingleDelete = request.intent === 'single'
 
-    setIsDeletingFailed(true)
+    let successMessage = t('Deleted {{count}} models', {
+      count: request.models.length,
+    })
+    if (isFailedDelete) {
+      successMessage = t('Deleted {{count}} failed models', {
+        count: request.models.length,
+      })
+    } else if (isSingleDelete) {
+      successMessage = t('Deleted a model')
+    }
+
+    let errorMessage = t('Failed to delete models')
+    if (isFailedDelete) {
+      errorMessage = t('Failed to delete failed models')
+    } else if (isSingleDelete) {
+      errorMessage = t('Failed to delete model')
+    }
+
+    setIsDeletingModels(true)
     try {
       const response = await updateChannel(currentRow.id, {
         models: remaining.join(','),
@@ -774,33 +809,31 @@ function ChannelTestDialogContent({
       if (response.success) {
         setRemovedModels((prev) => {
           const next = new Set(prev)
-          for (const model of failed) next.add(model)
+          for (const model of request.models) next.add(model)
           return next
         })
         setTestResults((prev) => {
           const next = { ...prev }
-          for (const model of failed) delete next[model]
+          for (const model of request.models) delete next[model]
           return next
         })
         setRowSelection((prev) => {
           const next = { ...prev }
-          for (const model of failed) delete next[model]
+          for (const model of request.models) delete next[model]
           return next
         })
-        toast.success(
-          t('Deleted {{count}} failed models', { count: failed.length })
-        )
+        toast.success(successMessage)
         refreshChannelLists()
-        setIsDeleteFailedDialogOpen(false)
+        setDeleteRequest(null)
       } else {
-        handleServerError(response, t('Failed to delete failed models'))
+        handleServerError(response, errorMessage)
       }
     } catch (error: unknown) {
-      handleServerError(error, t('Failed to delete failed models'))
+      handleServerError(error, errorMessage)
     } finally {
-      setIsDeletingFailed(false)
+      setIsDeletingModels(false)
     }
-  }, [currentRow.id, models, refreshChannelLists, t, testResults])
+  }, [currentRow.id, deleteRequest, models, refreshChannelLists, t])
 
   const handleClose = useCallback(() => {
     resetState()
@@ -909,26 +942,48 @@ function ChannelTestDialogContent({
           const isTestingModel = testingModels.has(model)
 
           return (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant='ghost'
-                    size='icon-sm'
-                    onClick={() => testSingleModel(model)}
-                    disabled={isTestingModel || isBatchTesting}
-                    aria-label={t('Test Connection')}
-                  />
-                }
-              >
-                {isTestingModel ? (
-                  <Loader2 className='size-4 animate-spin' />
-                ) : (
-                  <Gauge className='size-4' />
-                )}
-              </TooltipTrigger>
-              <TooltipContent>{t('Test Connection')}</TooltipContent>
-            </Tooltip>
+            <div className='flex items-center justify-end gap-1'>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant='ghost'
+                      size='icon-sm'
+                      onClick={() => testSingleModel(model)}
+                      disabled={
+                        isTestingModel || isBatchTesting || isDeletingModels
+                      }
+                      aria-label={t('Test Connection')}
+                    />
+                  }
+                >
+                  {isTestingModel ? (
+                    <Loader2 className='size-4 animate-spin' />
+                  ) : (
+                    <Gauge className='size-4' />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>{t('Test Connection')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant='ghost'
+                      size='icon-sm'
+                      onClick={() => requestDeleteModels([model], 'single')}
+                      disabled={
+                        isTestingModel || isBatchTesting || isDeletingModels
+                      }
+                      aria-label={t('Delete Model')}
+                    />
+                  }
+                >
+                  <Trash2 className='text-destructive size-4' />
+                </TooltipTrigger>
+                <TooltipContent>{t('Delete Model')}</TooltipContent>
+              </Tooltip>
+            </div>
           )
         },
         enableSorting: false,
@@ -937,6 +992,8 @@ function ChannelTestDialogContent({
     [
       defaultTestModel,
       isBatchTesting,
+      isDeletingModels,
+      requestDeleteModels,
       t,
       testResults,
       testingModels,
@@ -957,6 +1014,25 @@ function ChannelTestDialogContent({
     withSortedRowModel: false,
     withFacetedRowModel: false,
   })
+
+  const deleteCount = deleteRequest?.models.length ?? 0
+  let deleteTitle = t('Delete selected models')
+  let deleteDescription = t(
+    'This removes {{count}} models from this channel. This action cannot be undone.',
+    { count: deleteCount }
+  )
+  if (deleteRequest?.intent === 'failed') {
+    deleteTitle = t('Delete failed models')
+    deleteDescription = t(
+      'This removes {{count}} failed models from this channel. This action cannot be undone.',
+      { count: deleteCount }
+    )
+  } else if (deleteRequest?.intent === 'single') {
+    deleteTitle = t('Delete Model')
+    deleteDescription = t(
+      'This removes this model from this channel. This action cannot be undone.'
+    )
+  }
 
   return (
     <>
@@ -1059,7 +1135,9 @@ function ChannelTestDialogContent({
                         <Button
                           variant='outline'
                           size='sm'
-                          onClick={() => setIsDeleteFailedDialogOpen(true)}
+                          onClick={() =>
+                            requestDeleteModels(failedModels, 'failed')
+                          }
                         >
                           <Trash2 data-icon='inline-start' />
                           {t('Delete failed models ({{count}})', {
@@ -1121,22 +1199,26 @@ function ChannelTestDialogContent({
               <DataTablePagination table={table} />
             </div>
 
-            <TestModelsBulkActions table={table} />
+            <TestModelsBulkActions
+              table={table}
+              onDeleteModels={requestDeleteModels}
+            />
           </div>
         </div>
       </Dialog>
       <ConfirmDialog
-        open={isDeleteFailedDialogOpen}
-        onOpenChange={setIsDeleteFailedDialogOpen}
-        title={t('Delete failed models')}
-        desc={t(
-          'This removes {{count}} failed models from this channel. This action cannot be undone.',
-          { count: failedModels.length }
-        )}
+        open={deleteRequest !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleteRequest(null)
+          }
+        }}
+        title={deleteTitle}
+        desc={deleteDescription}
         destructive
-        isLoading={isDeletingFailed}
+        isLoading={isDeletingModels}
         confirmText={t('Delete')}
-        handleConfirm={handleDeleteFailedModels}
+        handleConfirm={handleDeleteModels}
       />
       <FailureDetailsSheet
         details={failureDetails}
@@ -1354,7 +1436,13 @@ function FailureDetailsSheet({
   )
 }
 
-function TestModelsBulkActions({ table }: { table: TanStackTable<ModelRow> }) {
+function TestModelsBulkActions({
+  table,
+  onDeleteModels,
+}: {
+  table: TanStackTable<ModelRow>
+  onDeleteModels: (models: string[], intent: DeleteIntent) => void
+}) {
   const { t } = useTranslation()
   const { copyToClipboard } = useCopyToClipboard()
   const selectedRows = table.getFilteredSelectedRowModel().rows
@@ -1384,6 +1472,15 @@ function TestModelsBulkActions({ table }: { table: TanStackTable<ModelRow> }) {
           <p>{t('Copy selected models separated by commas (e.g. a,b)')}</p>
         </TooltipContent>
       </Tooltip>
+      <Button
+        variant='outline'
+        size='sm'
+        onClick={() => onDeleteModels(selectedModels, 'selected')}
+        disabled={selectedModels.length === 0}
+      >
+        <Trash2 data-icon='inline-start' />
+        {t('Delete selected models')}
+      </Button>
     </BulkActionsToolbar>
   )
 }
