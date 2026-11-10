@@ -164,6 +164,14 @@ export interface LogOtherData {
     }
     // Reject / intercept reason (admin only)
     reject_reason?: string
+    // Request fields removed before upstream attempts; source is config/auto and
+    // auto entries carry the blacklist expiry (admin only).
+    param_removal?: {
+      param: string
+      source: 'config' | 'auto' | string
+      expires_at?: number
+    }[]
+    param_removal_retry?: boolean
     task_plugin?: TaskPluginInfo
   }
   root_info?: {
@@ -239,6 +247,8 @@ export interface LogOtherData {
    */
   retry_failures?: RetryFailureEntry[]
   retry_failures_truncated?: boolean
+  /** Top-level request fields removed before upstream attempts (user-visible). */
+  removed_params?: string[]
   failure_reason?: string
   /**
    * Set when the request failed because the client closed the connection

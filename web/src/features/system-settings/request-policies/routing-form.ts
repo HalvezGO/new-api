@@ -2,9 +2,25 @@ import type { TFunction } from 'i18next'
 import { z } from 'zod'
 
 import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
+import {
+  parseParamNameList,
+  serializeParamNameList,
+  validateParamNameList,
+} from '@/lib/param-removal'
 
 import { validateRetryModelOverrides } from '../models/routing-reliability-schema'
 import { defaultRequestPolicySettings } from './defaults'
+
+function parseParamRemovalListOption(value: string | undefined): string[] {
+  if (!value) return []
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is string => typeof item === 'string')
+  } catch {
+    return []
+  }
+}
 
 export function createRoutingPolicySchema(t: TFunction) {
   return z.object({
@@ -25,6 +41,17 @@ export function createRoutingPolicySchema(t: TFunction) {
         })
       }
     }),
+    ParamRemovalList: z.string().superRefine((value, context) => {
+      if (!validateParamNameList(value).ok) {
+        context.addIssue({
+          code: 'custom',
+          message: t(
+            'Remove parameters must be comma-separated field names (letters, numbers, _, ., -), up to 100 entries'
+          ),
+        })
+      }
+    }),
+    ParamRemovalBlacklistTTLSeconds: z.number().int().min(60).max(86400),
     AutomaticRetryStatusCodes: z
       .string()
       .refine(
@@ -74,6 +101,13 @@ export function routingPolicyFormValues(
     RetryModelOverrides:
       options.RetryModelOverrides ??
       defaultRequestPolicySettings.RetryModelOverrides,
+    ParamRemovalList: serializeParamNameList(
+      parseParamRemovalListOption(options.ParamRemovalList)
+    ),
+    ParamRemovalBlacklistTTLSeconds: Number(
+      options.ParamRemovalBlacklistTTLSeconds ??
+        defaultRequestPolicySettings.ParamRemovalBlacklistTTLSeconds
+    ),
     AutomaticRetryStatusCodes:
       options.AutomaticRetryStatusCodes ??
       defaultRequestPolicySettings.AutomaticRetryStatusCodes,
@@ -102,6 +136,12 @@ export function routingPolicyOptions(
     RetryInterval: String(values.RetryInterval),
     RetryIntervalStatusCodes: values.RetryIntervalStatusCodes,
     RetryModelOverrides: values.RetryModelOverrides.trim() || '{}',
+    ParamRemovalList: JSON.stringify(
+      parseParamNameList(values.ParamRemovalList)
+    ),
+    ParamRemovalBlacklistTTLSeconds: String(
+      values.ParamRemovalBlacklistTTLSeconds
+    ),
     AutomaticRetryStatusCodes: values.AutomaticRetryStatusCodes,
     ...Object.fromEntries(
       Object.entries(values.channel_affinity_setting).map(([key, value]) => [

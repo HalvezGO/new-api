@@ -172,6 +172,8 @@ func InitOptionMap() {
 	common.OptionMap["RetryTimes"] = strconv.Itoa(common.RetryTimes)
 	common.OptionMap["RetryInterval"] = strconv.Itoa(common.RetryInterval)
 	common.OptionMap["RetryModelOverrides"] = operation_setting.RetryModelOverridesToJSONString()
+	common.OptionMap["ParamRemovalList"] = operation_setting.ParamRemovalListToJSONString()
+	common.OptionMap["ParamRemovalBlacklistTTLSeconds"] = strconv.Itoa(operation_setting.GetParamRemovalBlacklistTTLSeconds())
 	common.OptionMap["InProgressLogEnabled"] = strconv.FormatBool(common.InProgressLogEnabled)
 	common.OptionMap["DataExportInterval"] = strconv.Itoa(common.DataExportInterval)
 	common.OptionMap["DataExportDefaultTime"] = common.DataExportDefaultTime
@@ -291,6 +293,12 @@ func validateOptionValue(key string, value string) error {
 	}
 	if key == operation_setting.RetryModelOverridesOptionKey {
 		return operation_setting.ValidateRetryModelOverrides(value)
+	}
+	if key == operation_setting.ParamRemovalListOptionKey {
+		return operation_setting.ValidateParamRemovalList(value)
+	}
+	if key == operation_setting.ParamRemovalBlacklistTTLSecondsOptionKey {
+		return operation_setting.ValidateParamRemovalBlacklistTTL(value)
 	}
 	return nil
 }
@@ -701,6 +709,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.RetryInterval = parseRetryOptionInt(key, value, common.MaxRetryInterval)
 	case "RetryModelOverrides":
 		err = operation_setting.UpdateRetryModelOverridesFromJSONString(value)
+	case operation_setting.ParamRemovalListOptionKey:
+		err = operation_setting.UpdateParamRemovalListFromJSONString(value)
+	case operation_setting.ParamRemovalBlacklistTTLSecondsOptionKey:
+		err = operation_setting.UpdateParamRemovalBlacklistTTLFromString(value)
 	case "InProgressLogEnabled":
 		common.InProgressLogEnabled = value == "true"
 	case "DataExportInterval":

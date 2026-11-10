@@ -53,6 +53,7 @@ func TestValidateRetryModelOverrides(t *testing.T) {
 		"",
 		`{"gpt-4o": {"retry_times": 0}}`,
 		`{"gpt-4o": {"retry_interval": 0}}`,
+		`{"gpt-4o": {"remove_params": ["prompt_cache_key"]}}`,
 		`{"gpt-4o": {"retry_times": 100, "retry_interval": 30000}}`,
 	}
 	for _, value := range valid {
@@ -65,6 +66,7 @@ func TestValidateRetryModelOverrides(t *testing.T) {
 		`{"": {"retry_times": 1}}`,
 		`{"   ": {"retry_times": 1}}`,
 		`{"gpt-4o": {}}`,
+		`{"gpt-4o": {"remove_params": ["bad name"]}}`,
 		`{"gpt-4o": {"retry_times": -1}}`,
 		fmt.Sprintf(`{"gpt-4o": {"retry_times": %d}}`, common.MaxRetryTimes+1),
 		`{"gpt-4o": {"retry_interval": -1}}`,

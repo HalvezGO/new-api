@@ -1050,6 +1050,9 @@ func (channel *Channel) ValidateSettings() error {
 	if channelParams.RetryInterval != nil && (*channelParams.RetryInterval < 0 || *channelParams.RetryInterval > common.MaxRetryInterval) {
 		return fmt.Errorf("invalid channel retry_interval: %d", *channelParams.RetryInterval)
 	}
+	if err := channelParams.ValidateParamRemoval(); err != nil {
+		return err
+	}
 	channelOtherSettings := &dto.ChannelOtherSettings{}
 	if channel.OtherSettings != "" {
 		err := common.UnmarshalJsonStr(channel.OtherSettings, channelOtherSettings)

@@ -37,7 +37,11 @@ import type { RoutingPolicyFormValues } from './routing-form'
 
 const retryModelOverridesExample = JSON.stringify(
   {
-    'gpt-4o': { retry_times: 3, retry_interval: 2000 },
+    'gpt-4o': {
+      retry_times: 3,
+      retry_interval: 2000,
+      remove_params: ['prompt_cache_key'],
+    },
     'claude-3-5-sonnet': { retry_times: 0 },
   },
   null,
@@ -171,7 +175,52 @@ export function RetrySection() {
               </FormControl>
               <FormDescription>
                 {t(
-                  'Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.'
+                  'Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.'
+                )}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='ParamRemovalList'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('Remove request parameters')}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={t('e.g. prompt_cache_key, prompt_cache_options')}
+                />
+              </FormControl>
+              <FormDescription>
+                {t(
+                  'Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.'
+                )}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='ParamRemovalBlacklistTTLSeconds'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('Unsupported parameter blacklist TTL')}</FormLabel>
+              <FormControl>
+                <Input
+                  type='number'
+                  min={60}
+                  max={86400}
+                  step={1}
+                  {...safeNumberFieldProps(field)}
+                />
+              </FormControl>
+              <FormDescription>
+                {t(
+                  'How long an automatically detected unsupported parameter stays removed for the same model, in seconds.'
                 )}
               </FormDescription>
               <FormMessage />

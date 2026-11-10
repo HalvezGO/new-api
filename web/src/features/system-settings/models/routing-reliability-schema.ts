@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import * as z from 'zod'
 
 import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
+import { validateParamNameList } from '@/lib/param-removal'
 
 const numericString = z.string().refine((value) => {
   const trimmed = value.trim()
@@ -86,12 +87,15 @@ export function validateRetryModelOverrides(
     if (keys.length === 0) {
       return {
         message:
-          'Retry override for {{model}} must set retry_times or retry_interval',
+          'Retry override for {{model}} must set retry_times, retry_interval, or remove_params',
         params: { model: modelName },
       }
     }
     const unknownKeys = keys.filter(
-      (key) => key !== 'retry_times' && key !== 'retry_interval'
+      (key) =>
+        key !== 'retry_times' &&
+        key !== 'retry_interval' &&
+        key !== 'remove_params'
     )
     if (unknownKeys.length > 0) {
       return {
@@ -118,6 +122,26 @@ export function validateRetryModelOverrides(
         message:
           'retry_interval for {{model}} must be an integer between 0 and 30000',
         params: { model: modelName },
+      }
+    }
+    if (override.remove_params !== undefined) {
+      const removeParams = override.remove_params
+      if (
+        !Array.isArray(removeParams) ||
+        removeParams.some((item) => typeof item !== 'string')
+      ) {
+        return {
+          message: 'remove_params for {{model}} must be an array of strings',
+          params: { model: modelName },
+        }
+      }
+      const validation = validateParamNameList(removeParams.join(','))
+      if (!validation.ok) {
+        return {
+          message:
+            'remove_params for {{model}} must be comma-separated field names (letters, numbers, _, ., -), up to 100 entries',
+          params: { model: modelName },
+        }
       }
     }
   }

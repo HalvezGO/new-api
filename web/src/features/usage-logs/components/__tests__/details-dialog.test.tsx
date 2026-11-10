@@ -49,11 +49,11 @@ function buildLog(other: Record<string, unknown>, isStream = false): UsageLog {
   }
 }
 
-function renderDialog(log: UsageLog) {
+function renderDialog(log: UsageLog, isAdmin = false) {
   return render(
     <DetailsDialog
       log={log}
-      isAdmin={false}
+      isAdmin={isAdmin}
       isRoot={false}
       open
       onOpenChange={() => undefined}
@@ -103,5 +103,37 @@ describe('usage log details dialog failure reason', () => {
 
     expect(screen.getByText('Client disconnected')).toBeInTheDocument()
     expect(screen.getByText('Stream Status')).toBeInTheDocument()
+  })
+
+  test('shows removed request parameters to the log owner', () => {
+    renderDialog(
+      buildLog({
+        removed_params: ['prompt_cache_key', 'temperature'],
+      })
+    )
+
+    expect(screen.getByText('Removed parameters')).toBeInTheDocument()
+    expect(screen.getByText('prompt_cache_key')).toBeInTheDocument()
+    expect(screen.getByText('temperature')).toBeInTheDocument()
+  })
+
+  test('shows removal source details only to admins', () => {
+    const other = {
+      removed_params: ['prompt_cache_key'],
+      admin_info: {
+        param_removal: [
+          {
+            param: 'prompt_cache_key',
+            source: 'auto',
+            expires_at: 1700000000,
+          },
+        ],
+      },
+    }
+
+    renderDialog(buildLog(other), true)
+
+    expect(screen.getByText('Parameter removal details')).toBeInTheDocument()
+    expect(screen.getByText('Automatic')).toBeInTheDocument()
   })
 })

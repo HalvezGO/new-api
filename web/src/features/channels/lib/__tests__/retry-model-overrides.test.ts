@@ -36,6 +36,7 @@ function createRow(
     model: '',
     retryTimes: '',
     retryInterval: '',
+    removeParams: '',
     ...overrides,
   }
 }
@@ -85,8 +86,20 @@ describe('retry model overrides', () => {
     )
 
     expect(rows).toEqual([
-      { id: 'row-1', model: 'model-a', retryTimes: '3', retryInterval: '' },
-      { id: 'row-2', model: 'model-b', retryTimes: '', retryInterval: '1500' },
+      {
+        id: 'row-1',
+        model: 'model-a',
+        retryTimes: '3',
+        retryInterval: '',
+        removeParams: '',
+      },
+      {
+        id: 'row-2',
+        model: 'model-b',
+        retryTimes: '',
+        retryInterval: '1500',
+        removeParams: '',
+      },
     ])
   })
 
@@ -243,5 +256,67 @@ describe('retry model overrides', () => {
         ['model-a', 'model-b']
       )
     ).toEqual({ ok: true })
+  })
+
+  test('reads and serializes per-model remove_params', () => {
+    const parsed = parseRetryModelOverrides(
+      JSON.stringify({
+        'model-a': { remove_params: ['prompt_cache_key'] },
+      })
+    )
+    expect(parsed).toEqual({
+      'model-a': { remove_params: ['prompt_cache_key'] },
+    })
+    expect(serializeRetryModelOverrides(parsed)).toBe(
+      '{"model-a":{"remove_params":["prompt_cache_key"]}}'
+    )
+  })
+
+  test('includes removeParams when building rows', () => {
+    const rows = buildRetryOverrideRows(
+      {
+        'model-a': { remove_params: ['prompt_cache_key'] },
+      },
+      ['model-a'],
+      () => 'row-1'
+    )
+    expect(rows).toEqual([
+      {
+        id: 'row-1',
+        model: 'model-a',
+        retryTimes: '',
+        retryInterval: '',
+        removeParams: 'prompt_cache_key',
+      },
+    ])
+  })
+
+  test('rejects invalid remove_params rows and keeps valid ones in updates', () => {
+    expect(
+      validateRetryOverrideRows(
+        [createRow({ model: 'model-a', removeParams: 'bad name' })],
+        ['model-a']
+      )
+    ).toEqual({
+      ok: false,
+      message:
+        'Remove parameters for {{model}} must be comma-separated field names (letters, numbers, _, ., -), up to 100 entries',
+      params: { model: 'model-a' },
+    })
+
+    const next = buildRetryModelOverridesUpdate({
+      base: {},
+      initialModels: ['model-a'],
+      currentModels: ['model-a'],
+      rows: [
+        createRow({
+          model: 'model-a',
+          removeParams: 'prompt_cache_key, temperature',
+        }),
+      ],
+    })
+    expect(next).toEqual({
+      'model-a': { remove_params: ['prompt_cache_key', 'temperature'] },
+    })
   })
 })

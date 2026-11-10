@@ -1966,6 +1966,32 @@ export function ChannelMutateDrawer({
           </FormItem>
         )}
       />
+
+      <FormField
+        control={form.control}
+        name='remove_params'
+        render={({ field }) => (
+          <FormItem className='sm:col-span-2'>
+            <FormLabel>{t('Remove request parameters')}</FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t('e.g. prompt_cache_key, prompt_cache_options')}
+                name={field.name}
+                ref={field.ref}
+                value={field.value ?? ''}
+                onBlur={field.onBlur}
+                onChange={(event) => field.onChange(event.target.value)}
+              />
+            </FormControl>
+            <FormDescription>
+              {t(
+                'Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.'
+              )}
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </div>
   )
 
@@ -2743,7 +2769,7 @@ export function ChannelMutateDrawer({
           </div>
           <p className='text-muted-foreground text-sm'>
             {t(
-              'Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.'
+              'Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.'
             )}
           </p>
         </div>

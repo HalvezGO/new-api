@@ -75,4 +75,20 @@ describe('channel retry settings', () => {
     expect(setting).not.toHaveProperty('retry_times')
     expect(setting).not.toHaveProperty('retry_interval')
   })
+
+  test('reads and writes the channel parameter removal list', () => {
+    const values = transformChannelToFormDefaults(
+      buildChannel({ remove_params: ['prompt_cache_key', 'temperature'] })
+    )
+    expect(values.remove_params).toBe('prompt_cache_key, temperature')
+
+    const setting = JSON.parse(buildSettingJSON(values))
+    expect(setting.remove_params).toEqual(['prompt_cache_key', 'temperature'])
+  })
+
+  test('omits an empty parameter removal list so the channel inherits', () => {
+    const values = transformChannelToFormDefaults(buildChannel({}))
+    const setting = JSON.parse(buildSettingJSON(values))
+    expect(setting).not.toHaveProperty('remove_params')
+  })
 })

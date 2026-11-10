@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 )
 
 const RetryModelOverridesOptionKey = "RetryModelOverrides"
@@ -14,8 +15,9 @@ const RetryModelOverridesOptionKey = "RetryModelOverrides"
 // model. A nil field falls back to the next level: channel setting, then the
 // global RetryTimes / RetryInterval options.
 type RetryPolicyOverride struct {
-	RetryTimes    *int `json:"retry_times,omitempty"`
-	RetryInterval *int `json:"retry_interval,omitempty"`
+	RetryTimes    *int     `json:"retry_times,omitempty"`
+	RetryInterval *int     `json:"retry_interval,omitempty"`
+	RemoveParams  []string `json:"remove_params,omitempty"`
 }
 
 var (
@@ -85,8 +87,8 @@ func parseRetryModelOverrides(value string) (map[string]RetryPolicyOverride, err
 		if name == "" {
 			return nil, fmt.Errorf("%s contains an empty model name", RetryModelOverridesOptionKey)
 		}
-		if override.RetryTimes == nil && override.RetryInterval == nil {
-			return nil, fmt.Errorf("%s[%s] must set retry_times or retry_interval", RetryModelOverridesOptionKey, name)
+		if override.RetryTimes == nil && override.RetryInterval == nil && len(override.RemoveParams) == 0 {
+			return nil, fmt.Errorf("%s[%s] must set retry_times, retry_interval, or remove_params", RetryModelOverridesOptionKey, name)
 		}
 		if override.RetryTimes != nil {
 			if *override.RetryTimes < 0 || *override.RetryTimes > common.MaxRetryTimes {
@@ -98,6 +100,11 @@ func parseRetryModelOverrides(value string) (map[string]RetryPolicyOverride, err
 				return nil, fmt.Errorf("%s[%s].retry_interval must be between 0 and %d", RetryModelOverridesOptionKey, name, common.MaxRetryInterval)
 			}
 		}
+		normalizedRemoveParams, err := dto.NormalizeParamRemovalList(override.RemoveParams)
+		if err != nil {
+			return nil, fmt.Errorf("%s[%s].remove_params: %w", RetryModelOverridesOptionKey, name, err)
+		}
+		override.RemoveParams = normalizedRemoveParams
 		parsed[name] = override
 	}
 	return parsed, nil

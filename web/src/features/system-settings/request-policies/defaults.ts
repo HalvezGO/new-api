@@ -24,6 +24,8 @@ export type RetrySettings = {
   RetryInterval: number
   RetryIntervalStatusCodes: string
   RetryModelOverrides: string
+  ParamRemovalList: string
+  ParamRemovalBlacklistTTLSeconds: number
   AutomaticRetryStatusCodes: string
 }
 export type HealthSettings = {
@@ -54,6 +56,8 @@ export const defaultRequestPolicySettings: RequestPolicySettings = {
   RetryInterval: 0,
   RetryIntervalStatusCodes: '429',
   RetryModelOverrides: '{}',
+  ParamRemovalList: '[]',
+  ParamRemovalBlacklistTTLSeconds: 3600,
   AutomaticRetryStatusCodes:
     '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
   ChannelDisableThreshold: '',

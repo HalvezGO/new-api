@@ -19,6 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 
 import {
+  parseParamNameList,
+  serializeParamNameList,
+  validateParamNameList,
+} from '@/lib/param-removal'
+
+import {
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_TYPE_NEW_API,
   CHANNEL_TYPE_OLLAMA,
@@ -306,6 +312,13 @@ export const channelFormSchema = z
           isOptionalIntegerInRange(value, 0, MAX_CHANNEL_RETRY_INTERVAL),
         ERROR_MESSAGES.INVALID_RETRY_INTERVAL
       ),
+    remove_params: z
+      .string()
+      .optional()
+      .refine(
+        (value) => validateParamNameList(value).ok,
+        ERROR_MESSAGES.INVALID_PARAM_REMOVAL_LIST
+      ),
     // Type-specific settings (stored in settings JSON)
     is_enterprise_account: z.boolean().optional(), // OpenRouter specific
     vertex_key_type: z.enum(['json', 'api_key']).optional(), // Vertex AI specific
@@ -504,6 +517,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   system_prompt_override: false,
   retry_times: '',
   retry_interval: '',
+  remove_params: '',
   // Type-specific settings
   is_enterprise_account: false,
   vertex_key_type: 'json',
@@ -555,6 +569,7 @@ export function transformChannelToFormDefaults(
     system_prompt_override: false,
     retry_times: '',
     retry_interval: '',
+    remove_params: '',
   }
 
   if (channel.setting) {
@@ -582,6 +597,7 @@ export function transformChannelToFormDefaults(
           parsed.retry_times != null ? String(parsed.retry_times) : '',
         retry_interval:
           parsed.retry_interval != null ? String(parsed.retry_interval) : '',
+        remove_params: serializeParamNameList(parsed.remove_params ?? []),
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -757,6 +773,10 @@ export function buildSettingJSON(formData: ChannelFormValues): string {
   }
   if (formData.retry_interval?.trim()) {
     settingObj.retry_interval = Number(formData.retry_interval)
+  }
+  const removeParams = parseParamNameList(formData.remove_params)
+  if (removeParams.length > 0) {
+    settingObj.remove_params = removeParams
   }
 
   return JSON.stringify(settingObj)

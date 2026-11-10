@@ -67,6 +67,7 @@ export function RetryModelOverridesEditor(
         model: '',
         retryTimes: '',
         retryInterval: '',
+        removeParams: '',
       },
     ])
   }
@@ -79,6 +80,7 @@ export function RetryModelOverridesEditor(
         model: '',
         retryTimes: row.retryTimes,
         retryInterval: row.retryInterval,
+        removeParams: row.removeParams,
       },
     ])
   }
@@ -114,16 +116,17 @@ export function RetryModelOverridesEditor(
     <div className='space-y-2'>
       {props.rows.length > 0 ? (
         <div className='space-y-2'>
-          <div className='grid grid-cols-[minmax(0,1fr)_6.5rem_7.5rem_auto] gap-2 text-sm font-medium'>
+          <div className='grid grid-cols-[minmax(0,1fr)_6rem_7rem_minmax(0,10rem)_auto] gap-2 text-sm font-medium'>
             <div>{t('Model')}</div>
             <div>{t('Retry Times')}</div>
             <div>{t('Retry Interval (ms)')}</div>
+            <div>{t('Remove parameters')}</div>
             <div className='w-[4.5rem]' aria-hidden='true' />
           </div>
           {props.rows.map((row) => (
             <div
               key={row.id}
-              className='grid grid-cols-[minmax(0,1fr)_6.5rem_7.5rem_auto] items-center gap-2'
+              className='grid grid-cols-[minmax(0,1fr)_6rem_7rem_minmax(0,10rem)_auto] items-center gap-2'
             >
               <Combobox
                 options={getModelOptions(row)}
@@ -159,6 +162,15 @@ export function RetryModelOverridesEditor(
                 disabled={props.disabled}
                 onChange={(event) =>
                   updateRow(row.id, { retryInterval: event.target.value })
+                }
+              />
+              <Input
+                value={row.removeParams}
+                placeholder={t('e.g. prompt_cache_key')}
+                aria-label={t('Remove parameters')}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  updateRow(row.id, { removeParams: event.target.value })
                 }
               />
               <div className='flex items-center gap-1'>

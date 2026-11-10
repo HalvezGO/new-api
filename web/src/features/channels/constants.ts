@@ -369,6 +369,8 @@ export const ERROR_MESSAGES = {
     'Retry times must be an integer between 0 and 100, or empty to inherit',
   INVALID_RETRY_INTERVAL:
     'Retry interval must be an integer between 0 and 30000 milliseconds, or empty to inherit',
+  INVALID_PARAM_REMOVAL_LIST:
+    'Remove parameters must be comma-separated field names (letters, numbers, _, ., -), up to 100 entries',
   CREATE_FAILED: 'Failed to create channel',
   UPDATE_FAILED: 'Failed to update channel',
   DELETE_FAILED: 'Failed to delete channel',

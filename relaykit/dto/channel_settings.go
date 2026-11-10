@@ -39,6 +39,10 @@ type ChannelSettings struct {
 	// this channel fails. Nil inherits the per-model override, then the global
 	// option.
 	RetryInterval *int `json:"retry_interval,omitempty"`
+	// RemoveParams lists top-level request body fields stripped before this
+	// channel's upstream request. Empty inherits the per-model override, then
+	// the global parameter removal list.
+	RemoveParams []string `json:"remove_params,omitempty"`
 	// TLSInsecureSkipVerify accepts upstream certificates that fail
 	// verification, such as self-signed ones, for this channel only.
 	TLSInsecureSkipVerify bool `json:"tls_insecure_skip_verify,omitempty"`
@@ -74,6 +78,51 @@ const (
 	HTTPProtocolHTTP1        = "http1"
 	MaxHTTP2ConnectionShards = 8
 )
+
+const (
+	MaxParamRemovalListSize = 100
+	maxParamNameLength      = 128
+)
+
+var paramNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+
+// NormalizeParamRemovalList trims, validates, sorts, and de-duplicates request
+// parameter names used by channel and global removal lists.
+func NormalizeParamRemovalList(params []string) ([]string, error) {
+	if len(params) == 0 {
+		return nil, nil
+	}
+	seen := make(map[string]struct{}, len(params))
+	normalized := make([]string, 0, len(params))
+	for _, raw := range params {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		if len(name) > maxParamNameLength || !paramNamePattern.MatchString(name) {
+			return nil, fmt.Errorf("invalid request parameter name: %s", name)
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		normalized = append(normalized, name)
+	}
+	if len(normalized) > MaxParamRemovalListSize {
+		return nil, fmt.Errorf("remove_params supports at most %d entries", MaxParamRemovalListSize)
+	}
+	slices.Sort(normalized)
+	return normalized, nil
+}
+
+// ValidateParamRemoval validates the channel-level request parameter removal list.
+func (s *ChannelSettings) ValidateParamRemoval() error {
+	if s == nil {
+		return nil
+	}
+	_, err := NormalizeParamRemovalList(s.RemoveParams)
+	return err
+}
 
 // ValidateHTTPTransport validates save-time HTTP transport channel settings.
 func (s *ChannelSettings) ValidateHTTPTransport() error {

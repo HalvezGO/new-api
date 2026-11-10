@@ -201,8 +201,16 @@ func buildLegacyParamOverride(paramOverride map[string]any) map[string]any {
 }
 
 func ApplyParamOverrideWithRelayInfo(jsonData []byte, info *RelayInfo) ([]byte, error) {
+	before := jsonData
+	var err error
+	jsonData, err = ApplyParamRemoval(jsonData, info)
+	if err != nil {
+		return nil, err
+	}
+
 	paramOverride := getParamOverrideMap(info)
 	if len(paramOverride) == 0 {
+		syncReasoningEffortAfterParamOverride(info, before, jsonData)
 		return jsonData, nil
 	}
 
@@ -216,7 +224,7 @@ func ApplyParamOverrideWithRelayInfo(jsonData []byte, info *RelayInfo) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	syncReasoningEffortAfterParamOverride(info, jsonData, result)
+	syncReasoningEffortAfterParamOverride(info, before, result)
 	syncRuntimeHeaderOverrideFromContext(info, overrideCtx)
 	if info != nil {
 		if recorder != nil {

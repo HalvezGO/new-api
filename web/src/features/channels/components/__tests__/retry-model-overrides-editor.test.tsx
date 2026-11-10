@@ -43,6 +43,7 @@ const modelARow: RetryModelOverrideRow = {
   model: 'model-a',
   retryTimes: '3',
   retryInterval: '1500',
+  removeParams: 'prompt_cache_key',
 }
 
 describe('RetryModelOverridesEditor', () => {
@@ -64,6 +65,9 @@ describe('RetryModelOverridesEditor', () => {
     expect(
       (screen.getByLabelText('Retry Interval (ms)') as HTMLInputElement).value
     ).toBe('')
+    expect(
+      (screen.getByLabelText('Remove parameters') as HTMLInputElement).value
+    ).toBe('')
   })
 
   test('copies retry values into a new row without a model', () => {
@@ -84,6 +88,14 @@ describe('RetryModelOverridesEditor', () => {
       'Retry Interval (ms)'
     ) as HTMLInputElement[]
     expect(retryIntervals.map((input) => input.value)).toEqual(['1500', '1500'])
+
+    const removeParams = screen.getAllByLabelText(
+      'Remove parameters'
+    ) as HTMLInputElement[]
+    expect(removeParams.map((input) => input.value)).toEqual([
+      'prompt_cache_key',
+      'prompt_cache_key',
+    ])
   })
 
   test('deletes an override row', () => {
@@ -99,7 +111,13 @@ describe('RetryModelOverridesEditor', () => {
       <Harness
         initialRows={[
           modelARow,
-          { id: 'row-empty', model: '', retryTimes: '', retryInterval: '' },
+          {
+            id: 'row-empty',
+            model: '',
+            retryTimes: '',
+            retryInterval: '',
+            removeParams: '',
+          },
         ]}
       />
     )

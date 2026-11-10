@@ -93,6 +93,7 @@ export interface ChannelSettings {
   http2_connection_shards?: number
   retry_times?: number
   retry_interval?: number
+  remove_params?: string[]
   tls_insecure_skip_verify?: boolean
 }
 

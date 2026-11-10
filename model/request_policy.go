@@ -55,6 +55,8 @@ func requestPolicyDefaultOptions() map[string]string {
 	defaults["RetryInterval"] = strconv.Itoa(common.RetryInterval)
 	defaults["RetryIntervalStatusCodes"] = operation_setting.RetryIntervalStatusCodesToString()
 	defaults["RetryModelOverrides"] = operation_setting.RetryModelOverridesToJSONString()
+	defaults["ParamRemovalList"] = operation_setting.ParamRemovalListToJSONString()
+	defaults["ParamRemovalBlacklistTTLSeconds"] = strconv.Itoa(operation_setting.GetParamRemovalBlacklistTTLSeconds())
 	defaults["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	defaults["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	defaults["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
@@ -72,7 +74,7 @@ func IsRequestPolicyOption(key string) bool {
 		return true
 	}
 	switch key {
-	case "CheckSensitiveEnabled", "CheckSensitiveOnPromptEnabled", "SensitiveWords", "AutomaticEnableChannelEnabled", "ChannelDisableThreshold", "monitor_setting.auto_test_channel_enabled", "monitor_setting.auto_test_channel_minutes", "monitor_setting.channel_test_concurrency", "monitor_setting.channel_test_mode", "RetryTimes", "RetryInterval", "RetryIntervalStatusCodes", "RetryModelOverrides", "AutomaticRetryStatusCodes", "AutomaticDisableChannelEnabled", "AutomaticDisableStatusCodes", "AutomaticDisableKeywords":
+	case "CheckSensitiveEnabled", "CheckSensitiveOnPromptEnabled", "SensitiveWords", "AutomaticEnableChannelEnabled", "ChannelDisableThreshold", "monitor_setting.auto_test_channel_enabled", "monitor_setting.auto_test_channel_minutes", "monitor_setting.channel_test_concurrency", "monitor_setting.channel_test_mode", "RetryTimes", "RetryInterval", "RetryIntervalStatusCodes", "RetryModelOverrides", "ParamRemovalList", "ParamRemovalBlacklistTTLSeconds", "AutomaticRetryStatusCodes", "AutomaticDisableChannelEnabled", "AutomaticDisableStatusCodes", "AutomaticDisableKeywords":
 		return true
 	}
 	return false
@@ -141,6 +143,12 @@ func BuildRequestPolicy(options map[string]string) (*RequestPolicySnapshot, erro
 		return nil, err
 	}
 	if err := operation_setting.ValidateRetryModelOverrides(raw["RetryModelOverrides"]); err != nil {
+		return nil, err
+	}
+	if err := operation_setting.ValidateParamRemovalList(raw["ParamRemovalList"]); err != nil {
+		return nil, err
+	}
+	if err := operation_setting.ValidateParamRemovalBlacklistTTL(raw["ParamRemovalBlacklistTTLSeconds"]); err != nil {
 		return nil, err
 	}
 	snapshot.AutoDisable, err = strconv.ParseBool(raw["AutomaticDisableChannelEnabled"])

@@ -262,8 +262,26 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 		relayInfo.LastError = newAPIError
 
+		forcedParamRetry := false
+		if params := service.ExtractUnsupportedParams(newAPIError); len(params) > 0 {
+			service.BlacklistUnsupportedParams(relayInfo, params)
+			if !relayInfo.ParamRemovalRetryUsed {
+				relayInfo.ParamRemovalRetryUsed = true
+				retryLimit++
+				retryParam.SetRetryLimit(retryLimit)
+				forcedParamRetry = true
+			}
+		}
+
 		remainingRetry := retryPolicy.RetryTimes - retryParam.GetRetry()
 		decision := decideRelayRetry(c, newAPIError, remainingRetry)
+		if forcedParamRetry {
+			decision = service.PolicyDecision{
+				Action: "retry",
+				Reason: "unsupported_param_removed",
+				Source: "system",
+			}
+		}
 		service.RecordPolicyFailure(c, channel.Id, newAPIError, decision)
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError, relayInfo)
 

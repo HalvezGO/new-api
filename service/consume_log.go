@@ -128,6 +128,7 @@ func buildFailedLogOther(c *gin.Context, relayInfo *relaycommon.RelayInfo, err *
 		other.SetPublic("request_path", c.Request.URL.Path)
 	}
 	mergeRetryFailures(other, relayInfo)
+	AppendParamRemovalInfo(other, relayInfo)
 	if relayInfo.HasSendResponse() {
 		// The stream had already produced its first token before failing; keep
 		// that latency so the failed row stays comparable with completed rows.

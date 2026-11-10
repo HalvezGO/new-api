@@ -63,7 +63,12 @@ import { pluginUsageSchema } from '@/features/pricing/lib/plugin-pricing'
 import { PolicyDecisionRecord } from '@/features/system-settings/request-policies/decision-record'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
-import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
+import {
+  formatLogQuota,
+  formatTokens,
+  formatUseTime,
+  formatTimestampToDate,
+} from '@/lib/format'
 import { translateServerText } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 
@@ -760,6 +765,52 @@ export function DetailsDialog(props: DetailsDialogProps) {
               }
             />
           )}
+
+          {(other?.removed_params?.length ?? 0) > 0 && (
+            <DetailRow
+              label={t('Removed parameters')}
+              value={
+                <div className='flex flex-wrap gap-1'>
+                  {other?.removed_params?.map((param) => (
+                    <code
+                      key={param}
+                      className='bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]'
+                    >
+                      {param}
+                    </code>
+                  ))}
+                </div>
+              }
+            />
+          )}
+
+          {props.isAdmin &&
+            (other?.admin_info?.param_removal?.length ?? 0) > 0 && (
+              <DetailSection label={t('Parameter removal details')}>
+                <div className='space-y-1'>
+                  {other?.admin_info?.param_removal?.map((record) => (
+                    <div
+                      key={`${record.param}-${record.source}-${record.expires_at ?? 0}`}
+                      className='flex flex-wrap items-center gap-2 text-xs'
+                    >
+                      <code className='font-mono'>{record.param}</code>
+                      <span className='text-muted-foreground'>
+                        {record.source === 'auto'
+                          ? t('Automatic')
+                          : t('Configured')}
+                      </span>
+                      {record.expires_at ? (
+                        <span className='text-muted-foreground'>
+                          {t('Blacklisted until {{time}}', {
+                            time: formatTimestampToDate(record.expires_at),
+                          })}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </DetailSection>
+            )}
 
           {props.log.token_name && (
             <DetailRow

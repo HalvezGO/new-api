@@ -1,3 +1,9 @@
+import {
+  parseParamNameList,
+  serializeParamNameList,
+  validateParamNameList,
+} from '@/lib/param-removal'
+
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -24,6 +30,7 @@ import {
 export type RetryModelOverride = {
   retry_times?: number
   retry_interval?: number
+  remove_params?: string[]
 }
 
 export type RetryModelOverridesMap = Record<string, RetryModelOverride>
@@ -33,6 +40,7 @@ export type RetryModelOverrideRow = {
   model: string
   retryTimes: string
   retryInterval: string
+  removeParams: string
 }
 
 export type RetryOverrideValidation =
@@ -90,11 +98,24 @@ export function parseRetryModelOverrides(
       source.retry_interval,
       MAX_CHANNEL_RETRY_INTERVAL
     )
-    if (retryTimes === undefined && retryInterval === undefined) continue
+    const rawRemoveParams = Array.isArray(source.remove_params)
+      ? source.remove_params.filter(
+          (item): item is string => typeof item === 'string'
+        )
+      : []
+    const removeParams = parseParamNameList(rawRemoveParams.join(','))
+    if (
+      retryTimes === undefined &&
+      retryInterval === undefined &&
+      removeParams.length === 0
+    ) {
+      continue
+    }
 
     const override: RetryModelOverride = {}
     if (retryTimes !== undefined) override.retry_times = retryTimes
     if (retryInterval !== undefined) override.retry_interval = retryInterval
+    if (removeParams.length > 0) override.remove_params = removeParams
     overrides[model] = override
   }
   return overrides
@@ -113,9 +134,15 @@ export function serializeRetryModelOverrides(
     if (override.retry_interval !== undefined) {
       normalized.retry_interval = override.retry_interval
     }
+    if (override.remove_params && override.remove_params.length > 0) {
+      normalized.remove_params = parseParamNameList(
+        override.remove_params.join(',')
+      )
+    }
     if (
       normalized.retry_times === undefined &&
-      normalized.retry_interval === undefined
+      normalized.retry_interval === undefined &&
+      (!normalized.remove_params || normalized.remove_params.length === 0)
     ) {
       continue
     }
@@ -146,6 +173,7 @@ export function buildRetryOverrideRows(
           override.retry_interval !== undefined
             ? String(override.retry_interval)
             : '',
+        removeParams: serializeParamNameList(override.remove_params ?? []),
       }
     })
 }
@@ -201,6 +229,15 @@ export function validateRetryOverrideRows(
         params: { model },
       }
     }
+    const removeParamsValidation = validateParamNameList(row.removeParams)
+    if (!removeParamsValidation.ok) {
+      return {
+        ok: false,
+        message:
+          'Remove parameters for {{model}} must be comma-separated field names (letters, numbers, _, ., -), up to 100 entries',
+        params: { model },
+      }
+    }
   }
 
   return { ok: true }
@@ -234,15 +271,18 @@ export function buildRetryModelOverridesUpdate(args: {
       MAX_CHANNEL_RETRY_INTERVAL
     )
     if (!retryTimes.valid || !retryInterval.valid) continue
+    const removeParams = parseParamNameList(row.removeParams)
 
     const override: RetryModelOverride = {}
     if (retryTimes.value !== null) override.retry_times = retryTimes.value
     if (retryInterval.value !== null) {
       override.retry_interval = retryInterval.value
     }
+    if (removeParams.length > 0) override.remove_params = removeParams
     if (
       override.retry_times === undefined &&
-      override.retry_interval === undefined
+      override.retry_interval === undefined &&
+      (!override.remove_params || override.remove_params.length === 0)
     ) {
       continue
     }

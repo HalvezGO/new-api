@@ -199,6 +199,12 @@ type RelayInfo struct {
 	ConsumeLogRetryFailuresTruncated bool
 	// LastRetryWaitMs is the interval waited before the most recent retry.
 	LastRetryWaitMs int
+	// ParamRemovalRetryUsed marks that the one extra sanitization retry beyond
+	// the configured retry budget has been granted for this request.
+	ParamRemovalRetryUsed bool
+	// RemovedParams records request fields stripped before upstream attempts,
+	// including the configured/auto source and blacklist expiry for admins.
+	RemovedParams []ParamRemovalRecord
 
 	PriceData hosttypes.PriceData
 
