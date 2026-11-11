@@ -3767,6 +3767,7 @@
     "Model Group": "Nhóm Mô hình",
     "Model hidden from model square": "Đã ẩn mô hình khỏi kho mô hình",
     "Model ID is required": "Cần có ID mô hình",
+    "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Khóa mô hình khớp với tên mô hình mà máy khách yêu cầu. Ghi đè theo mô hình ưu tiên hơn cài đặt kênh, cài đặt kênh ưu tiên hơn các tùy chọn toàn cục Retry Times, Retry Interval và Remove parameters.",
     "Model Limits": "Giới hạn Mô hình",
     "Model limits enabled": "Đã bật giới hạn mô hình",
     "Model List": "Danh sách mô hình",

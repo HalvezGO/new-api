@@ -3767,6 +3767,7 @@
     "Model Group": "Groupe de modèles",
     "Model hidden from model square": "Modèle masqué dans la galerie",
     "Model ID is required": "L’identifiant du modèle est requis",
+    "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Les clés de modèle correspondent au nom de modèle demandé par le client. Les surcharges de modèle priment sur les paramètres du canal, qui priment sur les options globales Retry Times, Retry Interval et Remove parameters.",
     "Model Limits": "Limites du modèle",
     "Model limits enabled": "Restrictions de modèles activées",
     "Model List": "Liste des modèles",

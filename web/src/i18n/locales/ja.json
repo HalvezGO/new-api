@@ -3767,6 +3767,7 @@
     "Model Group": "モデルグループ",
     "Model hidden from model square": "モデル広場で非表示にしました",
     "Model ID is required": "モデル ID が必要です",
+    "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "モデルキーはクライアントが要求したモデル名に一致します。モデル別上書きはチャンネル設定より優先され、チャンネル設定はグローバルの Retry Times、Retry Interval、Remove parameters オプションより優先されます。",
     "Model Limits": "モデル制限",
     "Model limits enabled": "モデル制限が有効",
     "Model List": "モデル一覧",

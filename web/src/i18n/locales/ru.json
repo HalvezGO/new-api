@@ -3767,6 +3767,7 @@
     "Model Group": "Группа моделей",
     "Model hidden from model square": "Модель скрыта в каталоге",
     "Model ID is required": "Требуется ID модели",
+    "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Ключи моделей соответствуют имени модели, запрошенному клиентом. Переопределения модели имеют приоритет над настройками канала, а они — над глобальными параметрами Retry Times, Retry Interval и Remove parameters.",
     "Model Limits": "Лимиты модели",
     "Model limits enabled": "Ограничения моделей включены",
     "Model List": "Список моделей",

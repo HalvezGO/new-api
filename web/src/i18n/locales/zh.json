@@ -3767,6 +3767,7 @@
     "Model Group": "模型分组",
     "Model hidden from model square": "已从模型广场隐藏",
     "Model ID is required": "模型 ID 不能为空",
+    "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "模型键匹配客户端请求的模型名称。模型覆盖优先于渠道设置，渠道设置优先于全局重试次数、重试间隔和移除参数选项。",
     "Model Limits": "模型限制",
     "Model limits enabled": "已启用模型限制",
     "Model List": "模型列表",

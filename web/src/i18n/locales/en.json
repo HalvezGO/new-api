@@ -3767,6 +3767,7 @@
     "Model Group": "Model Group",
     "Model hidden from model square": "Model hidden from model square",
     "Model ID is required": "Model ID is required",
+    "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.",
     "Model Limits": "Model Limits",
     "Model limits enabled": "Model limits enabled",
     "Model List": "Model List",
