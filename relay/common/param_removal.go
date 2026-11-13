@@ -169,6 +169,11 @@ func ApplyParamRemoval(jsonData []byte, info *RelayInfo) ([]byte, error) {
 	if len(records) == 0 {
 		return jsonData, nil
 	}
+	// Only object bodies have top-level parameters; arrays and scalar bodies
+	// (or malformed JSON) pass through untouched.
+	if !ojson.ValidBytes(jsonData) || !ojson.GetBytesNoCopy(jsonData, "@this").IsObject() {
+		return jsonData, nil
+	}
 	doc := ojson.NewDoc(jsonData)
 	removed := make([]ParamRemovalRecord, 0, len(records))
 	for _, record := range records {
