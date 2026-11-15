@@ -34,6 +34,7 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import type { RequestPluginInstance } from '@/features/task-plugins/types'
@@ -324,6 +325,22 @@ test.each([
     expect(put.mock.calls[0]?.[1]).toMatchObject({ id: 42, base_url: savedUrl })
   }
 )
+
+test('a base URL that already carries /v1 is accepted without a warning', async () => {
+  const warning = vi.spyOn(toast, 'warning')
+  render(<ConfigurationHarness currentRow={editingChannel} />)
+  await screen.findByDisplayValue('Existing channel')
+  const address = screen.getByRole('textbox', { name: 'Base URL' })
+  fireEvent.change(address, {
+    target: { value: 'https://api.example.com/v1' },
+  })
+  // The upstream warning fired 500ms after the address changed; wait past
+  // that window so a reintroduced toast would be caught.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 600))
+  })
+  expect(warning).not.toHaveBeenCalled()
+})
 
 test('an unavailable default URL endpoint keeps the fallback placeholder and allows saving a custom address', async () => {
   const onInternalServerError = vi.fn()
