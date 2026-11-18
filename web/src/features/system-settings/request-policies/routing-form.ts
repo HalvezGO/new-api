@@ -8,7 +8,6 @@ import {
   validateParamNameList,
 } from '@/lib/param-removal'
 
-import { validateRetryModelOverrides } from '../models/routing-reliability-schema'
 import { defaultRequestPolicySettings } from './defaults'
 
 function parseParamRemovalListOption(value: string | undefined): string[] {
@@ -32,15 +31,6 @@ export function createRoutingPolicySchema(t: TFunction) {
         (value) => parseHttpStatusCodeRules(value).ok,
         t('Invalid status code rules')
       ),
-    RetryModelOverrides: z.string().superRefine((value, context) => {
-      const error = validateRetryModelOverrides(value)
-      if (error) {
-        context.addIssue({
-          code: 'custom',
-          message: t(error.message, error.params),
-        })
-      }
-    }),
     ParamRemovalList: z.string().superRefine((value, context) => {
       if (!validateParamNameList(value).ok) {
         context.addIssue({
@@ -98,9 +88,6 @@ export function routingPolicyFormValues(
     RetryIntervalStatusCodes:
       options.RetryIntervalStatusCodes ??
       defaultRequestPolicySettings.RetryIntervalStatusCodes,
-    RetryModelOverrides:
-      options.RetryModelOverrides ??
-      defaultRequestPolicySettings.RetryModelOverrides,
     ParamRemovalList: serializeParamNameList(
       parseParamRemovalListOption(options.ParamRemovalList)
     ),
@@ -135,7 +122,6 @@ export function routingPolicyOptions(
     RetryTimes: String(values.RetryTimes),
     RetryInterval: String(values.RetryInterval),
     RetryIntervalStatusCodes: values.RetryIntervalStatusCodes,
-    RetryModelOverrides: values.RetryModelOverrides.trim() || '{}',
     ParamRemovalList: JSON.stringify(
       parseParamNameList(values.ParamRemovalList)
     ),

@@ -22,8 +22,6 @@ import {
   buildRetryModelOverridesUpdate,
   buildRetryOverrideRows,
   filterRetryOverrideRowsForModels,
-  parseRetryModelOverrides,
-  serializeRetryModelOverrides,
   validateRetryOverrideRows,
   type RetryModelOverrideRow,
 } from '../retry-model-overrides'
@@ -42,37 +40,6 @@ function createRow(
 }
 
 describe('retry model overrides', () => {
-  test('reads only valid per-model overrides', () => {
-    const parsed = parseRetryModelOverrides(
-      JSON.stringify({
-        ' gpt-4o ': { retry_times: 3, retry_interval: 2000 },
-        'gpt-4o-mini': { retry_times: 0 },
-        invalid: { retry_times: 101 },
-        empty: {},
-      })
-    )
-
-    expect(parsed).toEqual({
-      'gpt-4o': { retry_times: 3, retry_interval: 2000 },
-      'gpt-4o-mini': { retry_times: 0 },
-    })
-  })
-
-  test('returns an empty map for malformed overrides', () => {
-    expect(parseRetryModelOverrides('not json')).toEqual({})
-    expect(parseRetryModelOverrides('')).toEqual({})
-    expect(parseRetryModelOverrides('[]')).toEqual({})
-  })
-
-  test('serializes model keys in a stable order', () => {
-    expect(
-      serializeRetryModelOverrides({
-        'model-b': { retry_interval: 1500 },
-        'model-a': { retry_times: 3 },
-      })
-    ).toBe('{"model-a":{"retry_times":3},"model-b":{"retry_interval":1500}}')
-  })
-
   test('builds rows only for channel models with overrides', () => {
     let nextId = 0
     const rows = buildRetryOverrideRows(
@@ -256,20 +223,6 @@ describe('retry model overrides', () => {
         ['model-a', 'model-b']
       )
     ).toEqual({ ok: true })
-  })
-
-  test('reads and serializes per-model remove_params', () => {
-    const parsed = parseRetryModelOverrides(
-      JSON.stringify({
-        'model-a': { remove_params: ['prompt_cache_key'] },
-      })
-    )
-    expect(parsed).toEqual({
-      'model-a': { remove_params: ['prompt_cache_key'] },
-    })
-    expect(serializeRetryModelOverrides(parsed)).toBe(
-      '{"model-a":{"remove_params":["prompt_cache_key"]}}'
-    )
   })
 
   test('includes removeParams when building rows', () => {

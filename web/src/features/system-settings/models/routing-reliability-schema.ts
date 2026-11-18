@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import * as z from 'zod'
 
 import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
-import { validateParamNameList } from '@/lib/param-removal'
 
 const numericString = z.string().refine((value) => {
   const trimmed = value.trim()
@@ -34,119 +33,6 @@ const channelTestModes = [
 ] as const
 export type ChannelTestMode = (typeof channelTestModes)[number]
 export const MAX_CHANNEL_TEST_CONCURRENCY = 32
-const MAX_RETRY_TIMES = 100
-const MAX_RETRY_INTERVAL = 30000
-
-function isIntegerInRange(value: unknown, min: number, max: number): boolean {
-  return (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= min &&
-    value <= max
-  )
-}
-
-type RetryModelOverridesError = {
-  message: string
-  params?: Record<string, unknown>
-}
-
-export function validateRetryModelOverrides(
-  value: string
-): RetryModelOverridesError | null {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(trimmed)
-  } catch {
-    return { message: 'Invalid JSON format' }
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { message: 'Retry overrides must be a JSON object' }
-  }
-
-  for (const [rawModelName, rawOverride] of Object.entries(parsed)) {
-    const modelName = rawModelName.trim()
-    if (!modelName) {
-      return { message: 'Model name must not be empty' }
-    }
-    if (
-      !rawOverride ||
-      typeof rawOverride !== 'object' ||
-      Array.isArray(rawOverride)
-    ) {
-      return {
-        message: 'Retry override for {{model}} must be a JSON object',
-        params: { model: modelName },
-      }
-    }
-    const override = rawOverride as Record<string, unknown>
-    const keys = Object.keys(override)
-    if (keys.length === 0) {
-      return {
-        message:
-          'Retry override for {{model}} must set retry_times, retry_interval, or remove_params',
-        params: { model: modelName },
-      }
-    }
-    const unknownKeys = keys.filter(
-      (key) =>
-        key !== 'retry_times' &&
-        key !== 'retry_interval' &&
-        key !== 'remove_params'
-    )
-    if (unknownKeys.length > 0) {
-      return {
-        message:
-          'Retry override for {{model}} contains unknown fields: {{fields}}',
-        params: { model: modelName, fields: unknownKeys.join(', ') },
-      }
-    }
-    if (
-      override.retry_times !== undefined &&
-      !isIntegerInRange(override.retry_times, 0, MAX_RETRY_TIMES)
-    ) {
-      return {
-        message:
-          'retry_times for {{model}} must be an integer between 0 and 100',
-        params: { model: modelName },
-      }
-    }
-    if (
-      override.retry_interval !== undefined &&
-      !isIntegerInRange(override.retry_interval, 0, MAX_RETRY_INTERVAL)
-    ) {
-      return {
-        message:
-          'retry_interval for {{model}} must be an integer between 0 and 30000',
-        params: { model: modelName },
-      }
-    }
-    if (override.remove_params !== undefined) {
-      const removeParams = override.remove_params
-      if (
-        !Array.isArray(removeParams) ||
-        removeParams.some((item) => typeof item !== 'string')
-      ) {
-        return {
-          message: 'remove_params for {{model}} must be an array of strings',
-          params: { model: modelName },
-        }
-      }
-      const validation = validateParamNameList(removeParams.join(','))
-      if (!validation.ok) {
-        return {
-          message:
-            'remove_params for {{model}} must be comma-separated field names (letters, numbers, _, ., -), up to 100 entries',
-          params: { model: modelName },
-        }
-      }
-    }
-  }
-  return null
-}
 
 export const createRoutingReliabilitySchema = (
   t: (key: string, options?: Record<string, unknown>) => string
@@ -156,7 +42,6 @@ export const createRoutingReliabilitySchema = (
       RetryTimes: z.coerce.number().min(0).max(100),
       RetryInterval: z.coerce.number().min(0).max(30000),
       RetryIntervalStatusCodes: z.string(),
-      RetryModelOverrides: z.string(),
       ChannelDisableThreshold: numericString,
       AutomaticDisableChannelEnabled: z.boolean(),
       AutomaticEnableChannelEnabled: z.boolean(),
@@ -217,20 +102,6 @@ export const createRoutingReliabilitySchema = (
           message: t('Invalid status code rules: {{tokens}}', {
             tokens: retryIntervalParsed.invalidTokens.join(', '),
           }),
-        })
-      }
-
-      const retryModelOverridesError = validateRetryModelOverrides(
-        values.RetryModelOverrides
-      )
-      if (retryModelOverridesError) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['RetryModelOverrides'],
-          message: t(
-            retryModelOverridesError.message,
-            retryModelOverridesError.params
-          ),
         })
       }
     })

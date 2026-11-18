@@ -104,6 +104,42 @@ function isOptionalIntegerInRange(
   return parsed >= min && parsed <= max
 }
 
+const retryModelOverrideSchema = z.object({
+  retry_times: z.number().int().min(0).max(MAX_CHANNEL_RETRY_TIMES).optional(),
+  retry_interval: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_CHANNEL_RETRY_INTERVAL)
+    .optional(),
+  remove_params: z.array(z.string()).optional(),
+})
+
+type ChannelRetryModelOverrides = Record<
+  string,
+  z.infer<typeof retryModelOverrideSchema>
+>
+
+function readRetryModelOverrides(value: unknown): ChannelRetryModelOverrides {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const overrides: ChannelRetryModelOverrides = {}
+  for (const [model, raw] of Object.entries(value)) {
+    const name = model.trim()
+    if (!name) continue
+    const parsed = retryModelOverrideSchema.safeParse(raw)
+    if (!parsed.success) continue
+    if (
+      parsed.data.retry_times === undefined &&
+      parsed.data.retry_interval === undefined &&
+      (!parsed.data.remove_params || parsed.data.remove_params.length === 0)
+    ) {
+      continue
+    }
+    overrides[name] = parsed.data
+  }
+  return overrides
+}
+
 export function normalizeHttpProtocol(
   value: string | undefined | null
 ): 'auto' | 'http1' {
@@ -320,6 +356,11 @@ export const channelFormSchema = z
         (value) => validateParamNameList(value).ok,
         ERROR_MESSAGES.INVALID_PARAM_REMOVAL_LIST
       ),
+    // Per-model overrides apply to this channel only. Keys match the channel's
+    // model names, without model_prefix.
+    retry_model_overrides: z
+      .record(z.string(), retryModelOverrideSchema)
+      .optional(),
     // Type-specific settings (stored in settings JSON)
     is_enterprise_account: z.boolean().optional(), // OpenRouter specific
     vertex_key_type: z.enum(['json', 'api_key']).optional(), // Vertex AI specific
@@ -527,6 +568,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   retry_times: '',
   retry_interval: '',
   remove_params: '',
+  retry_model_overrides: {},
   // Type-specific settings
   is_enterprise_account: false,
   vertex_key_type: 'json',
@@ -581,6 +623,7 @@ export function transformChannelToFormDefaults(
     retry_times: '',
     retry_interval: '',
     remove_params: '',
+    retry_model_overrides: {} as ChannelRetryModelOverrides,
   }
 
   if (channel.setting) {
@@ -614,6 +657,9 @@ export function transformChannelToFormDefaults(
         retry_interval:
           parsed.retry_interval != null ? String(parsed.retry_interval) : '',
         remove_params: serializeParamNameList(parsed.remove_params ?? []),
+        retry_model_overrides: readRetryModelOverrides(
+          parsed.retry_model_overrides
+        ),
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -804,6 +850,10 @@ export function buildSettingJSON(formData: ChannelFormValues): string {
   const removeParams = parseParamNameList(formData.remove_params)
   if (removeParams.length > 0) {
     settingObj.remove_params = removeParams
+  }
+  const retryModelOverrides = formData.retry_model_overrides ?? {}
+  if (Object.keys(retryModelOverrides).length > 0) {
+    settingObj.retry_model_overrides = retryModelOverrides
   }
 
   return JSON.stringify(settingObj)

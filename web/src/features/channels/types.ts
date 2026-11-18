@@ -126,6 +126,14 @@ export interface ChannelSettings {
   retry_times?: number
   retry_interval?: number
   remove_params?: string[]
+  retry_model_overrides?: Record<
+    string,
+    {
+      retry_times?: number
+      retry_interval?: number
+      remove_params?: string[]
+    }
+  >
   tls_insecure_skip_verify?: boolean
 }
 

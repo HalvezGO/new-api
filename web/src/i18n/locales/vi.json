@@ -702,6 +702,7 @@
     "Client disconnected": "Client đã ngắt kết nối",
     "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.": "Các trường yêu cầu cấp cao nhất phân tách bằng dấu phẩy, bị xóa trước khi gọi upstream. Để trống ở cấp toàn cục nghĩa là không cấu hình; danh sách mô hình và kênh được ưu tiên nếu có.",
     "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.": "Các trường yêu cầu cấp cao nhất phân tách bằng dấu phẩy, bị xóa trước khi gọi upstream. Để trống sẽ kế thừa ghi đè theo mô hình, sau đó danh sách toàn cục.",
+    "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.": "Các trường yêu cầu cấp cao nhất phân tách bằng dấu phẩy, bị xóa trước khi kênh này gọi upstream. Để trống sẽ dùng ghi đè theo mô hình của kênh này, sau đó đến danh sách toàn cục.",
     "Configure ordinary OpenAI pricing": "Đặt giá OpenAI thông thường",
     "Copy override": "Sao chép ghi đè",
     "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.": "Không thể tải mã nguồn plugin từ trình duyệt này. Máy chủ có thể chặn yêu cầu cross-origin hoặc không truy cập được.",
@@ -3870,6 +3871,7 @@
     "Maximum quota amount awarded for check-in": "Số lượng hạn ngạch tối đa được trao cho điểm danh",
     "Maximum retries": "Số lần thử lại tối đa",
     "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.": "Số lần thử lại tối đa cho một yêu cầu khi kênh này gặp lỗi. Để trống sẽ kế thừa ghi đè của mô hình, sau đó đến cài đặt toàn cục.",
+    "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Số lần thử lại tối đa cho một yêu cầu khi kênh này gặp lỗi. Để trống sẽ dùng ghi đè theo mô hình của kênh này, sau đó đến cài đặt toàn cục.",
     "Maximum tokens including hidden reasoning tokens": "Số token tối đa bao gồm token suy luận ẩn",
     "Maximum tokens per response": "Số token tối đa mỗi phản hồi",
     "Maximum tokens per user": "Số token tối đa trên mỗi người dùng",
@@ -3906,6 +3908,7 @@
     "Migration notes": "Ghi chú chuyển đổi",
     "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.": "Số mili giây chờ trước lần thử lại tiếp theo khi lỗi trước đó khớp với mã trạng thái khoảng thời gian thử lại. 0 nghĩa là không chờ.",
     "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.": "Số mili giây chờ trước lần thử lại tiếp theo khi kênh này gặp lỗi. Để trống sẽ kế thừa ghi đè của mô hình, sau đó đến cài đặt toàn cục.",
+    "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Số mili giây chờ trước lần thử lại tiếp theo khi kênh này gặp lỗi. Để trống sẽ dùng ghi đè theo mô hình của kênh này, sau đó đến cài đặt toàn cục.",
     "min downtime": "phút gián đoạn",
     "Min Top-up": "Nạp tối thiểu",
     "Min Top-up:": "Nạp tối thiểu:",
@@ -3972,6 +3975,7 @@
     "Model ID is required": "Cần có ID mô hình",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.": "Khóa mô hình khớp với tên mô hình mà máy khách yêu cầu. Thứ tự ưu tiên: ghi đè mô hình > cài đặt kênh > tùy chọn số lần thử lại và khoảng thời gian toàn cục.",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Khóa mô hình khớp với tên mô hình mà máy khách yêu cầu. Ghi đè theo mô hình ưu tiên hơn cài đặt kênh, cài đặt kênh ưu tiên hơn các tùy chọn toàn cục Retry Times, Retry Interval và Remove parameters.",
+    "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.": "Khóa mô hình khớp với tên mô hình của kênh này. Các ghi đè này chỉ áp dụng cho kênh này và ưu tiên hơn cài đặt Retry Times, Retry Interval và Remove parameters của kênh.",
     "Model Limits": "Giới hạn Mô hình",
     "Model limits enabled": "Đã bật giới hạn mô hình",
     "Model List": "Danh sách mô hình",
@@ -7907,6 +7911,7 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "By clicking sign in, you agree to our": "Bằng cách nhấp đăng nhập, bạn đồng ý với",
-    "By creating an account, you agree to our": "Bằng cách tạo tài khoản, bạn đồng ý với"
+    "By creating an account, you agree to our": "Bằng cách tạo tài khoản, bạn đồng ý với",
+    "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.": "Thời gian (giây) tham số không được hỗ trợ được tự động phát hiện vẫn bị xóa cho cùng kênh và mô hình."
   }
 }

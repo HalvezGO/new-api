@@ -57,10 +57,11 @@ func TestChannelValidateSettingsRejectsInvalidRetryPolicy(t *testing.T) {
 	invalidInterval := common.MaxRetryInterval + 1
 
 	tests := []struct {
-		name          string
-		retryTimes    *int
-		retryInterval *int
-		wantErr       string
+		name               string
+		retryTimes         *int
+		retryInterval      *int
+		retryModelOverride map[string]dto.RetryModelOverride
+		wantErr            string
 	}{
 		{
 			name:          "in-range values are valid",
@@ -77,15 +78,60 @@ func TestChannelValidateSettingsRejectsInvalidRetryPolicy(t *testing.T) {
 			retryInterval: &invalidInterval,
 			wantErr:       "retry_interval",
 		},
+		{
+			name: "valid per-model override",
+			retryModelOverride: map[string]dto.RetryModelOverride{
+				"model-a": {RetryTimes: &validTimes, RetryInterval: &validInterval, RemoveParams: []string{"prompt_cache_key"}},
+			},
+		},
+		{
+			name: "per-model retry times above the maximum rejected",
+			retryModelOverride: map[string]dto.RetryModelOverride{
+				"model-a": {RetryTimes: &invalidTimes},
+			},
+			wantErr: "retry_model_overrides",
+		},
+		{
+			name: "per-model retry interval above the maximum rejected",
+			retryModelOverride: map[string]dto.RetryModelOverride{
+				"model-a": {RetryInterval: &invalidInterval},
+			},
+			wantErr: "retry_model_overrides",
+		},
+		{
+			name: "per-model override with an empty model name rejected",
+			retryModelOverride: map[string]dto.RetryModelOverride{
+				"  ": {RetryTimes: &validTimes},
+			},
+			wantErr: "retry_model_overrides",
+		},
+		{
+			name: "per-model override without any field rejected",
+			retryModelOverride: map[string]dto.RetryModelOverride{
+				"model-a": {},
+			},
+			wantErr: "retry_model_overrides",
+		},
+		{
+			name: "per-model override with an invalid remove parameter rejected",
+			retryModelOverride: map[string]dto.RetryModelOverride{
+				"model-a": {RemoveParams: []string{"bad name"}},
+			},
+			wantErr: "retry_model_overrides",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			channel := &Channel{}
-			channel.SetSetting(dto.ChannelSettings{
+			setting := dto.ChannelSettings{
 				RetryTimes:    tt.retryTimes,
 				RetryInterval: tt.retryInterval,
-			})
+			}
+			if tt.retryModelOverride != nil {
+				setting.RetryModelOverrides = tt.retryModelOverride
+			}
+			channel.SetSetting(setting)
 
 			err := channel.ValidateSettings()
 			if tt.wantErr == "" {

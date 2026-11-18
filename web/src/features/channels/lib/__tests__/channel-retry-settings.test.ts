@@ -91,4 +91,54 @@ describe('channel retry settings', () => {
     const setting = JSON.parse(buildSettingJSON(values))
     expect(setting).not.toHaveProperty('remove_params')
   })
+
+  test('reads per-model retry overrides from the channel setting', () => {
+    const values = transformChannelToFormDefaults(
+      buildChannel({
+        retry_model_overrides: {
+          'model-a': { retry_times: 3, remove_params: ['prompt_cache_key'] },
+        },
+      })
+    )
+
+    expect(values.retry_model_overrides).toEqual({
+      'model-a': { retry_times: 3, remove_params: ['prompt_cache_key'] },
+    })
+  })
+
+  test('drops empty per-model retry overrides when reading', () => {
+    const values = transformChannelToFormDefaults(
+      buildChannel({
+        retry_model_overrides: {
+          'model-empty': {},
+          'model-a': { retry_times: 3 },
+        },
+      })
+    )
+
+    expect(values.retry_model_overrides).toEqual({
+      'model-a': { retry_times: 3 },
+    })
+  })
+
+  test('writes per-model retry overrides into the channel setting', () => {
+    const values = transformChannelToFormDefaults(
+      buildChannel({
+        retry_model_overrides: {
+          'model-a': { retry_times: 3 },
+        },
+      })
+    )
+
+    const setting = JSON.parse(buildSettingJSON(values))
+    expect(setting.retry_model_overrides).toEqual({
+      'model-a': { retry_times: 3 },
+    })
+  })
+
+  test('omits an empty per-model retry override map', () => {
+    const values = transformChannelToFormDefaults(buildChannel({}))
+    const setting = JSON.parse(buildSettingJSON(values))
+    expect(setting).not.toHaveProperty('retry_model_overrides')
+  })
 })

@@ -26,20 +26,25 @@ const (
 	paramRemovalSourceAuto   = "auto"
 )
 
-type paramBlacklist struct {
-	mu      sync.Mutex
-	entries map[string]map[string]time.Time
+type paramBlacklistKey struct {
+	channelID int
+	model     string
 }
 
-var unsupportedParamBlacklist = paramBlacklist{entries: make(map[string]map[string]time.Time)}
+type paramBlacklist struct {
+	mu      sync.Mutex
+	entries map[paramBlacklistKey]map[string]time.Time
+}
 
-// BlacklistUnsupportedParam records one unsupported parameter for a model until
-// the supplied TTL expires. The blacklist is keyed by model only, so one
-// logical model uses the same sanitized request across channels.
-func BlacklistUnsupportedParam(model, param string, ttl time.Duration) (ParamRemovalRecord, bool) {
-	model = strings.TrimSpace(model)
+var unsupportedParamBlacklist = paramBlacklist{entries: make(map[paramBlacklistKey]map[string]time.Time)}
+
+// BlacklistUnsupportedParam records one unsupported parameter for a model on a
+// channel until the supplied TTL expires. Upstream validation differs per
+// channel, so the blacklist is scoped to the channel that rejected it.
+func BlacklistUnsupportedParam(channelID int, model, param string, ttl time.Duration) (ParamRemovalRecord, bool) {
+	key := paramBlacklistKey{channelID: channelID, model: strings.TrimSpace(model)}
 	param = strings.TrimSpace(param)
-	if model == "" || param == "" {
+	if key.model == "" || param == "" {
 		return ParamRemovalRecord{}, false
 	}
 	if ttl <= 0 {
@@ -47,10 +52,10 @@ func BlacklistUnsupportedParam(model, param string, ttl time.Duration) (ParamRem
 	}
 	expiresAt := time.Now().Add(ttl)
 	unsupportedParamBlacklist.mu.Lock()
-	params := unsupportedParamBlacklist.entries[model]
+	params := unsupportedParamBlacklist.entries[key]
 	if params == nil {
 		params = make(map[string]time.Time)
-		unsupportedParamBlacklist.entries[model] = params
+		unsupportedParamBlacklist.entries[key] = params
 	}
 	params[param] = expiresAt
 	unsupportedParamBlacklist.mu.Unlock()
@@ -59,13 +64,13 @@ func BlacklistUnsupportedParam(model, param string, ttl time.Duration) (ParamRem
 
 // BlacklistUnsupportedParams records all detected parameters and returns the
 // records for the caller's logs.
-func BlacklistUnsupportedParams(model string, params []string, ttl time.Duration) []ParamRemovalRecord {
+func BlacklistUnsupportedParams(channelID int, model string, params []string, ttl time.Duration) []ParamRemovalRecord {
 	if len(params) == 0 {
 		return nil
 	}
 	records := make([]ParamRemovalRecord, 0, len(params))
 	for _, param := range params {
-		if record, ok := BlacklistUnsupportedParam(model, param, ttl); ok {
+		if record, ok := BlacklistUnsupportedParam(channelID, model, param, ttl); ok {
 			records = append(records, record)
 		}
 	}
@@ -73,19 +78,26 @@ func BlacklistUnsupportedParams(model string, params []string, ttl time.Duration
 }
 
 // BlacklistUnsupportedParamsForRelayInfo records detected parameters under the
-// same model key used by configured list resolution.
+// channel and model key used by configured list resolution.
 func BlacklistUnsupportedParamsForRelayInfo(info *RelayInfo, params []string, ttl time.Duration) []ParamRemovalRecord {
-	return BlacklistUnsupportedParams(modelKeyForParamRemoval(info), params, ttl)
+	if info == nil {
+		return nil
+	}
+	channelID := 0
+	if info.ChannelMeta != nil {
+		channelID = info.ChannelId
+	}
+	return BlacklistUnsupportedParams(channelID, modelKeyForParamRemoval(info), params, ttl)
 }
 
-func blacklistedParamRecords(model string, now time.Time) []ParamRemovalRecord {
-	model = strings.TrimSpace(model)
-	if model == "" {
+func blacklistedParamRecords(channelID int, model string, now time.Time) []ParamRemovalRecord {
+	key := paramBlacklistKey{channelID: channelID, model: strings.TrimSpace(model)}
+	if key.model == "" {
 		return nil
 	}
 	unsupportedParamBlacklist.mu.Lock()
 	defer unsupportedParamBlacklist.mu.Unlock()
-	params := unsupportedParamBlacklist.entries[model]
+	params := unsupportedParamBlacklist.entries[key]
 	if len(params) == 0 {
 		return nil
 	}
@@ -102,7 +114,7 @@ func blacklistedParamRecords(model string, now time.Time) []ParamRemovalRecord {
 		})
 	}
 	if len(params) == 0 {
-		delete(unsupportedParamBlacklist.entries, model)
+		delete(unsupportedParamBlacklist.entries, key)
 	}
 	return records
 }
@@ -121,18 +133,23 @@ func modelKeyForParamRemoval(info *RelayInfo) string {
 }
 
 // EffectiveParamRemovalRecords resolves configured lists with priority
-// model > channel > global and unions the per-model runtime blacklist.
+// channel model > channel > global and unions this channel's runtime blacklist.
 func EffectiveParamRemovalRecords(info *RelayInfo) []ParamRemovalRecord {
 	if info == nil {
 		return nil
 	}
 	model := modelKeyForParamRemoval(info)
-	configured := []string(nil)
-	if override, ok := operation_setting.GetRetryModelOverride(model); ok && len(override.RemoveParams) > 0 {
-		configured = override.RemoveParams
-	} else if info.ChannelMeta != nil && len(info.ChannelSetting.RemoveParams) > 0 {
-		configured = info.ChannelSetting.RemoveParams
-	} else {
+	channelID := 0
+	var configured []string
+	if info.ChannelMeta != nil {
+		channelID = info.ChannelId
+		if override, ok := info.ChannelSetting.RetryModelOverrides[model]; ok && len(override.RemoveParams) > 0 {
+			configured = override.RemoveParams
+		} else if len(info.ChannelSetting.RemoveParams) > 0 {
+			configured = info.ChannelSetting.RemoveParams
+		}
+	}
+	if len(configured) == 0 {
 		configured = operation_setting.GetGlobalParamRemovalList()
 	}
 
@@ -144,7 +161,7 @@ func EffectiveParamRemovalRecords(info *RelayInfo) []ParamRemovalRecord {
 		}
 		recordsByParam[param] = ParamRemovalRecord{Param: param, Source: paramRemovalSourceConfig}
 	}
-	for _, record := range blacklistedParamRecords(model, time.Now()) {
+	for _, record := range blacklistedParamRecords(channelID, model, time.Now()) {
 		if _, exists := recordsByParam[record.Param]; !exists {
 			recordsByParam[record.Param] = record
 		}

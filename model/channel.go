@@ -1205,6 +1205,24 @@ func (channel *Channel) ValidateSettings() error {
 	if err := channelParams.ValidateParamRemoval(); err != nil {
 		return err
 	}
+	for model, override := range channelParams.RetryModelOverrides {
+		name := strings.TrimSpace(model)
+		if name == "" || name != model {
+			return fmt.Errorf("invalid retry_model_overrides model name: %q", model)
+		}
+		if override.RetryTimes == nil && override.RetryInterval == nil && len(override.RemoveParams) == 0 {
+			return fmt.Errorf("retry_model_overrides[%s] must set retry_times, retry_interval, or remove_params", name)
+		}
+		if override.RetryTimes != nil && (*override.RetryTimes < 0 || *override.RetryTimes > common.MaxRetryTimes) {
+			return fmt.Errorf("invalid retry_model_overrides[%s].retry_times: %d", name, *override.RetryTimes)
+		}
+		if override.RetryInterval != nil && (*override.RetryInterval < 0 || *override.RetryInterval > common.MaxRetryInterval) {
+			return fmt.Errorf("invalid retry_model_overrides[%s].retry_interval: %d", name, *override.RetryInterval)
+		}
+		if _, err := dto.NormalizeParamRemovalList(override.RemoveParams); err != nil {
+			return fmt.Errorf("invalid retry_model_overrides[%s].remove_params: %w", name, err)
+		}
+	}
 	channelOtherSettings := &dto.ChannelOtherSettings{}
 	if channel.OtherSettings != "" {
 		err := common.UnmarshalJsonStr(channel.OtherSettings, channelOtherSettings)

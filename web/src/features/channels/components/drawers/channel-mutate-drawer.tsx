@@ -112,11 +112,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { SecureVerificationDialog } from '@/features/auth/secure-verification'
-import {
-  getOptionValue,
-  useSystemOptions,
-} from '@/features/system-settings/hooks/use-system-options'
-import { useUpdateOption } from '@/features/system-settings/hooks/use-update-option'
 import { PluginIcon } from '@/features/task-plugins/components/plugin-icon'
 import type { PluginIconInput } from '@/features/task-plugins/lib/plugin-icon'
 import { fromRequestPluginConfigDraft } from '@/features/task-plugins/lib/request-plugins'
@@ -201,8 +196,6 @@ import {
   buildRetryModelOverridesUpdate,
   buildRetryOverrideRows,
   filterRetryOverrideRowsForModels,
-  parseRetryModelOverrides,
-  serializeRetryModelOverrides,
   validateRetryOverrideRows,
   type RetryModelOverrideRow,
   type RetryModelOverridesMap,
@@ -647,21 +640,10 @@ export function ChannelMutateDrawer({
     enabled: open && !showProviderPicker,
   })
 
-  // Fetch system options for the per-model retry override editor
-  const { data: systemOptionsData } = useSystemOptions({ enabled: open })
-  const updateOption = useUpdateOption()
-
   const createRetryRowId = useCallback(() => {
     nextRetryOverrideRowIdRef.current += 1
     return `retry-override-${nextRetryOverrideRowIdRef.current}`
   }, [])
-
-  const retryModelOverridesOption = useMemo(() => {
-    if (!systemOptionsData?.data) return null
-    return getOptionValue(systemOptionsData.data, {
-      RetryModelOverrides: '{}',
-    }).RetryModelOverrides
-  }, [systemOptionsData])
 
   const { copyToClipboard } = useCopyToClipboard()
 
@@ -859,13 +841,15 @@ export function ChannelMutateDrawer({
     [currentModels]
   )
 
-  // Models the retry override editor seeds from when editing. A new channel
-  // reads the models currently typed into the form when the editor first opens.
-  const retryOverrideChannelModels = useMemo(() => {
+  // Models and per-model overrides the retry editor seeds from when editing.
+  // A new channel reads the models currently typed into the form instead.
+  const retryOverrideChannelSettings = useMemo(() => {
     if (!isEditing || !channelData?.data) return null
-    return parseModelsString(
-      transformChannelToFormDefaults(channelData.data).models
-    )
+    const values = transformChannelToFormDefaults(channelData.data)
+    return {
+      models: parseModelsString(values.models),
+      overrides: values.retry_model_overrides ?? {},
+    }
   }, [isEditing, channelData])
 
   useEffect(() => {
@@ -875,28 +859,21 @@ export function ChannelMutateDrawer({
       return
     }
     if (retryOverridesSeededRef.current) return
-    if (retryModelOverridesOption === null) return
+    if (isEditing && retryOverrideChannelSettings === null) return
 
     const seedModels = isEditing
-      ? retryOverrideChannelModels
+      ? (retryOverrideChannelSettings?.models ?? [])
       : parseModelsString(form.getValues('models') || '')
-    if (seedModels === null) return
-
-    const overrides = parseRetryModelOverrides(retryModelOverridesOption)
+    const overrides = isEditing
+      ? (retryOverrideChannelSettings?.overrides ?? {})
+      : {}
     retryOverridesBaseRef.current = overrides
     retryOverridesInitialModelsRef.current = seedModels
     setRetryOverrideRows(
       buildRetryOverrideRows(overrides, seedModels, createRetryRowId)
     )
     retryOverridesSeededRef.current = true
-  }, [
-    open,
-    isEditing,
-    retryModelOverridesOption,
-    retryOverrideChannelModels,
-    createRetryRowId,
-    form,
-  ])
+  }, [open, isEditing, retryOverrideChannelSettings, createRetryRowId, form])
 
   const visibleRetryOverrideRows = useMemo(
     () =>
@@ -1938,7 +1915,6 @@ export function ChannelMutateDrawer({
       const loginPlugin = pluginLogin ? boundTaskPlugin : undefined
       if (loginPlugin) data.key = ''
 
-      let nextRetryModelOverridesJson: string | null = null
       if (retryOverridesSeededRef.current) {
         const finalModels = parseModelsString(data.models || '')
         const retryOverrideValidation = validateRetryOverrideRows(
@@ -1952,29 +1928,16 @@ export function ChannelMutateDrawer({
           return
         }
 
-        const nextRetryModelOverrides = buildRetryModelOverridesUpdate({
+        data.retry_model_overrides = buildRetryModelOverridesUpdate({
           base: retryOverridesBaseRef.current,
           initialModels: retryOverridesInitialModelsRef.current,
           currentModels: finalModels,
           rows: visibleRetryOverrideRows,
         })
-        nextRetryModelOverridesJson = serializeRetryModelOverrides(
-          nextRetryModelOverrides
-        )
       }
 
       try {
         const result = await channelMutation.mutateAsync(data)
-        if (
-          nextRetryModelOverridesJson !== null &&
-          nextRetryModelOverridesJson !==
-            serializeRetryModelOverrides(retryOverridesBaseRef.current)
-        ) {
-          await updateOption.mutateAsync({
-            key: 'RetryModelOverrides',
-            value: nextRetryModelOverridesJson,
-          })
-        }
         if (!isEditing && loginPlugin && result.channelId) {
           setLoginRequest({
             channelId: result.channelId,
@@ -1999,7 +1962,6 @@ export function ChannelMutateDrawer({
       confirmMissingModelMappings,
       confirmStatusCodeRisk,
       channelMutation,
-      updateOption,
       visibleRetryOverrideRows,
       t,
     ]
@@ -2085,7 +2047,7 @@ export function ChannelMutateDrawer({
             </FormControl>
             <FormDescription>
               {t(
-                'Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.'
+                'Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.'
               )}
             </FormDescription>
             <FormMessage />
@@ -2114,7 +2076,7 @@ export function ChannelMutateDrawer({
             </FormControl>
             <FormDescription>
               {t(
-                'Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.'
+                'Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.'
               )}
             </FormDescription>
             <FormMessage />
@@ -2140,7 +2102,7 @@ export function ChannelMutateDrawer({
             </FormControl>
             <FormDescription>
               {t(
-                'Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.'
+                'Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.'
               )}
             </FormDescription>
             <FormMessage />
@@ -2922,7 +2884,7 @@ export function ChannelMutateDrawer({
           </div>
           <p className='text-muted-foreground text-sm'>
             {t(
-              'Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.'
+              'Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.'
             )}
           </p>
         </div>
@@ -2931,7 +2893,7 @@ export function ChannelMutateDrawer({
           modelOptions={currentModelsArray}
           onChange={setRetryOverrideRows}
           disabled={isSubmitting}
-          loading={retryModelOverridesOption === null}
+          loading={false}
         />
       </div>
     </div>

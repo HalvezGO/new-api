@@ -702,6 +702,7 @@
     "Client disconnected": "Клиент отключился",
     "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.": "Поля запроса верхнего уровня через запятую, удаляемые перед вызовом upstream. Пустое значение на глобальном уровне ничего не задаёт; списки модели и канала имеют приоритет.",
     "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.": "Поля запроса верхнего уровня через запятую, удаляемые перед вызовом upstream. Пустое значение наследует переопределение модели, затем глобальный список.",
+    "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.": "Поля запроса верхнего уровня через запятую, удаляемые перед вызовом upstream из этого канала. Пустое значение использует переопределение модели этого канала, затем глобальный список.",
     "Configure ordinary OpenAI pricing": "Настроить цены обычного OpenAI",
     "Copy override": "Копировать переопределение",
     "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.": "Не удалось загрузить код плагина из браузера. Хост может блокировать кросс-доменные запросы или быть недоступен.",
@@ -3870,6 +3871,7 @@
     "Maximum quota amount awarded for check-in": "Максимальная сумма квоты, присуждаемая за регистрацию",
     "Maximum retries": "Максимум повторов",
     "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.": "Максимальное число повторов запроса при сбое этого канала. Пустое значение наследует переопределение модели, затем глобальную настройку.",
+    "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Максимальное число повторов запроса при сбое этого канала. Пустое значение использует переопределение модели этого канала, затем глобальную настройку.",
     "Maximum tokens including hidden reasoning tokens": "Максимум токенов с учётом скрытых reasoning-токенов",
     "Maximum tokens per response": "Максимум токенов на ответ",
     "Maximum tokens per user": "Максимальное количество токенов на пользователя",
@@ -3906,6 +3908,7 @@
     "Migration notes": "Примечания по миграции",
     "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.": "Время ожидания в миллисекундах перед следующей попыткой, если предыдущая ошибка соответствует кодам статуса интервала повтора. 0 означает отсутствие ожидания.",
     "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.": "Задержка в миллисекундах перед следующим повтором при сбое этого канала. Пустое значение наследует переопределение модели, затем глобальную настройку.",
+    "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Сколько миллисекунд ждать перед следующей попыткой при сбое этого канала. Пустое значение использует переопределение модели этого канала, затем глобальную настройку.",
     "min downtime": "мин простоя",
     "Min Top-up": "Мин. пополнение",
     "Min Top-up:": "Мин. пополнение:",
@@ -3972,6 +3975,7 @@
     "Model ID is required": "Требуется ID модели",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.": "Ключи моделей совпадают с именем модели, запрошенным клиентом. Приоритет: переопределение модели > настройки канала > глобальные параметры числа повторов и интервала.",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Ключи моделей соответствуют имени модели, запрошенному клиентом. Переопределения модели имеют приоритет над настройками канала, а они — над глобальными параметрами Retry Times, Retry Interval и Remove parameters.",
+    "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.": "Ключи моделей соответствуют именам моделей этого канала. Эти переопределения действуют только для этого канала и имеют приоритет над его настройками Retry Times, Retry Interval и Remove parameters.",
     "Model Limits": "Лимиты модели",
     "Model limits enabled": "Ограничения моделей включены",
     "Model List": "Список моделей",
@@ -7907,6 +7911,7 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "By clicking sign in, you agree to our": "Нажимая «Войти», вы соглашаетесь с нашими",
-    "By creating an account, you agree to our": "Создавая аккаунт, вы соглашаетесь с нашими"
+    "By creating an account, you agree to our": "Создавая аккаунт, вы соглашаетесь с нашими",
+    "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.": "Сколько секунд автоматически обнаруженный неподдерживаемый параметр остаётся удалённым для того же канала и модели."
   }
 }

@@ -19,28 +19,21 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-func TestBuildRequestPolicyAcceptsRetryIntervalAndModelOverrides(t *testing.T) {
+func TestBuildRequestPolicyAcceptsRetryInterval(t *testing.T) {
 	options := maps.Clone(requestPolicyDefaults)
 	options["RetryInterval"] = "1500"
 	options["RetryIntervalStatusCodes"] = "429,500-599"
-	options["RetryModelOverrides"] = `{"gpt-4o":{"retry_times":2}}`
 
 	snapshot, err := BuildRequestPolicy(options)
 	require.NoError(t, err)
 	assert.Equal(t, "1500", snapshot.Options["RetryInterval"])
 	assert.Equal(t, "429,500-599", snapshot.Options["RetryIntervalStatusCodes"])
-	assert.JSONEq(t, `{"gpt-4o":{"retry_times":2}}`, snapshot.Options["RetryModelOverrides"])
 
 	options["RetryInterval"] = strconv.Itoa(common.MaxRetryInterval + 1)
 	_, err = BuildRequestPolicy(options)
 	require.Error(t, err)
 
 	options["RetryInterval"] = "0"
-	options["RetryModelOverrides"] = `{"gpt-4o":{"retry_times":101}}`
-	_, err = BuildRequestPolicy(options)
-	require.Error(t, err)
-
-	options["RetryModelOverrides"] = "{}"
 	options["RetryTimes"] = strconv.Itoa(common.MaxRetryTimes + 1)
 	_, err = BuildRequestPolicy(options)
 	require.Error(t, err)

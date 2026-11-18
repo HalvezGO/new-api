@@ -62,8 +62,8 @@ func ExtractUnsupportedParams(err *types.NewAPIError) []string {
 	return normalized
 }
 
-// BlacklistUnsupportedParams records detected parameters for the one-hour
-// per-model runtime blacklist (TTL configurable in the request policy).
+// BlacklistUnsupportedParams records detected parameters for the runtime
+// blacklist of this channel and model (TTL configurable in the request policy).
 func BlacklistUnsupportedParams(info *relaycommon.RelayInfo, params []string) []relaycommon.ParamRemovalRecord {
 	if info == nil || len(params) == 0 {
 		return nil

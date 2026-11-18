@@ -702,6 +702,7 @@
     "Client disconnected": "用戶端已中斷連線",
     "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.": "以逗號分隔的頂層請求欄位，在呼叫上游前移除。全域留空表示不設定；模型與渠道清單存在時優先使用。",
     "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.": "以逗號分隔的頂層請求欄位，在呼叫上游前移除。留空則依序繼承按模型覆寫與全域清單。",
+    "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.": "以逗號分隔的頂層請求欄位，在呼叫上游前移除。留空則依序使用目前渠道的按模型覆寫和全域清單。",
     "Configure ordinary OpenAI pricing": "設定一般 OpenAI 價格",
     "Copy override": "複製覆蓋",
     "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.": "無法在瀏覽器中取得外掛原始碼。該主機可能禁止跨來源請求或無法連線。",
@@ -3870,6 +3871,7 @@
     "Maximum quota amount awarded for check-in": "簽到獎勵的最大額度",
     "Maximum retries": "最多重試次數",
     "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.": "此渠道失敗時單次請求的最大重試次數。留空則依序繼承模型覆蓋與全域設定。",
+    "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "當此渠道失敗時，單一請求的最大重試次數。留空則依序使用目前渠道的按模型覆寫和全域設定。",
     "Maximum tokens including hidden reasoning tokens": "最大 token 數（含隱藏的推理 token）",
     "Maximum tokens per response": "單次回應最大 token 數",
     "Maximum tokens per user": "每個用戶的最大令牌數",
@@ -3906,6 +3908,7 @@
     "Migration notes": "遷移說明",
     "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.": "當上一次失敗的狀態碼命中重試間隔狀態碼時，等待多少毫秒後再重試；0 表示不等待。",
     "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.": "此渠道失敗時，下次重試前的等待毫秒數。留空則依序繼承模型覆蓋與全域設定。",
+    "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "此渠道失敗後，下次重試前的等待毫秒數。留空則依序使用目前渠道的按模型覆寫和全域設定。",
     "min downtime": "分鐘停機",
     "Min Top-up": "最低儲值",
     "Min Top-up:": "最低儲值：",
@@ -3972,6 +3975,7 @@
     "Model ID is required": "模型 ID 不可為空",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.": "模型鍵對應客戶端請求的模型名稱。優先順序：模型覆蓋 > 渠道設定 > 全域重試次數與重試間隔。",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "模型鍵匹配客戶端請求的模型名稱。模型覆寫優先於渠道設定，渠道設定優先於全域重試次數、重試間隔和移除參數選項。",
+    "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.": "模型鍵匹配目前渠道的模型名稱。這些覆寫僅作用於目前渠道，並優先於該渠道的重試次數、重試間隔和移除參數設定。",
     "Model Limits": "模型限制",
     "Model limits enabled": "已啟用模型限制",
     "Model List": "模型列表",
@@ -7907,6 +7911,7 @@
     "Zhipu V4": "智譜 V4",
     "Zoom": "縮放",
     "By clicking sign in, you agree to our": "點擊登入即表示您同意我們的",
-    "By creating an account, you agree to our": "建立帳戶即表示您同意我們的"
+    "By creating an account, you agree to our": "建立帳戶即表示您同意我們的",
+    "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.": "自動識別的不支援參數在同一渠道和模型上保持移除的時長（秒）。"
   }
 }

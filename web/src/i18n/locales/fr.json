@@ -702,6 +702,7 @@
     "Client disconnected": "Client déconnecté",
     "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.": "Champs de requête de premier niveau séparés par des virgules, supprimés avant l'appel upstream. Vide ne définit rien au niveau global ; les listes de modèle et de canal sont prioritaires si définies.",
     "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.": "Champs de requête de premier niveau séparés par des virgules, supprimés avant l'appel upstream. Vide hérite de la surcharge par modèle, puis de la liste globale.",
+    "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.": "Champs de requête de premier niveau séparés par des virgules, supprimés avant l’appel upstream de ce canal. Vide suit la surcharge par modèle de ce canal, puis la liste globale.",
     "Configure ordinary OpenAI pricing": "Définir les tarifs OpenAI standard",
     "Copy override": "Copier la surcharge",
     "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.": "Impossible de récupérer le code du plugin depuis ce navigateur. L’hôte bloque peut-être les requêtes cross-origin ou est injoignable.",
@@ -3870,6 +3871,7 @@
     "Maximum quota amount awarded for check-in": "Montant maximum de quota attribué pour la connexion",
     "Maximum retries": "Nombre maximal de tentatives",
     "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.": "Nombre maximal de tentatives pour une requête lorsque ce canal échoue. Vide : hérite de la surcharge du modèle, puis du réglage global.",
+    "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Nombre maximal de tentatives pour une requête lorsque ce canal échoue. Vide suit la surcharge par modèle de ce canal, puis le réglage global.",
     "Maximum tokens including hidden reasoning tokens": "Jetons maximum, y compris les jetons de raisonnement masqués",
     "Maximum tokens per response": "Nombre maximal de jetons par réponse",
     "Maximum tokens per user": "Nombre maximum de jetons par utilisateur",
@@ -3906,6 +3908,7 @@
     "Migration notes": "Notes de migration",
     "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.": "Millisecondes d'attente avant la prochaine tentative lorsque l'échec précédent correspond aux codes de statut d'intervalle de nouvelle tentative. 0 signifie aucune attente.",
     "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.": "Millisecondes d'attente avant la prochaine tentative lorsque ce canal échoue. Vide : hérite de la surcharge du modèle, puis du réglage global.",
+    "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Millisecondes à attendre avant la prochaine tentative lorsque ce canal échoue. Vide suit la surcharge par modèle de ce canal, puis le réglage global.",
     "min downtime": "min d'interruption",
     "Min Top-up": "Recharge min.",
     "Min Top-up:": "Recharge min. :",
@@ -3972,6 +3975,7 @@
     "Model ID is required": "L’identifiant du modèle est requis",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.": "Les clés de modèle correspondent au nom demandé par le client. Les surcharges de modèle priment sur les réglages du canal, qui priment sur les options globales de tentatives et d’intervalle.",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Les clés de modèle correspondent au nom de modèle demandé par le client. Les surcharges de modèle priment sur les paramètres du canal, qui priment sur les options globales Retry Times, Retry Interval et Remove parameters.",
+    "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.": "Les clés de modèle correspondent aux noms de modèles de ce canal. Ces surcharges ne s’appliquent qu’à ce canal et priment sur ses réglages Retry Times, Retry Interval et Remove parameters.",
     "Model Limits": "Limites du modèle",
     "Model limits enabled": "Restrictions de modèles activées",
     "Model List": "Liste des modèles",
@@ -7907,6 +7911,7 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "By clicking sign in, you agree to our": "En cliquant sur se connecter, vous acceptez nos",
-    "By creating an account, you agree to our": "En créant un compte, vous acceptez nos"
+    "By creating an account, you agree to our": "En créant un compte, vous acceptez nos",
+    "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.": "Durée pendant laquelle un paramètre non pris en charge détecté automatiquement reste supprimé pour le même canal et modèle, en secondes."
   }
 }

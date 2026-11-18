@@ -702,6 +702,7 @@
     "Client disconnected": "Client disconnected",
     "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.": "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.",
     "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.": "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.",
+    "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.": "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.",
     "Configure ordinary OpenAI pricing": "Configure ordinary OpenAI pricing",
     "Copy override": "Copy override",
     "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.": "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.",
@@ -3870,6 +3871,7 @@
     "Maximum quota amount awarded for check-in": "Maximum quota amount awarded for check-in",
     "Maximum retries": "Maximum retries",
     "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.": "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.",
+    "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.",
     "Maximum tokens including hidden reasoning tokens": "Maximum tokens including hidden reasoning tokens",
     "Maximum tokens per response": "Maximum tokens per response",
     "Maximum tokens per user": "Maximum tokens per user",
@@ -3906,6 +3908,7 @@
     "Migration notes": "Migration notes",
     "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.": "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.",
     "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.": "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.",
+    "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.",
     "min downtime": "min downtime",
     "Min Top-up": "Min Top-up",
     "Min Top-up:": "Min Top-up:",
@@ -3972,6 +3975,7 @@
     "Model ID is required": "Model ID is required",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.": "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.",
+    "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.": "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.",
     "Model Limits": "Model Limits",
     "Model limits enabled": "Model limits enabled",
     "Model List": "Model List",
@@ -7907,6 +7911,7 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "By clicking sign in, you agree to our": "By clicking sign in, you agree to our",
-    "By creating an account, you agree to our": "By creating an account, you agree to our"
+    "By creating an account, you agree to our": "By creating an account, you agree to our",
+    "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.": "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds."
   }
 }

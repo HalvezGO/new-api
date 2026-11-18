@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import { useFormContext } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
-import { JsonCodeEditor } from '@/components/json-code-editor'
 import {
   FormControl,
   FormDescription,
@@ -34,19 +33,6 @@ import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
 import { SettingsCard } from '../components/settings-card'
 import { safeNumberFieldProps } from '../utils/numeric-field'
 import type { RoutingPolicyFormValues } from './routing-form'
-
-const retryModelOverridesExample = JSON.stringify(
-  {
-    'gpt-4o': {
-      retry_times: 3,
-      retry_interval: 2000,
-      remove_params: ['prompt_cache_key'],
-    },
-    'claude-3-5-sonnet': { retry_times: 0 },
-  },
-  null,
-  2
-)
 
 export function RetrySection() {
   const { t } = useTranslation()
@@ -158,32 +144,6 @@ export function RetrySection() {
         />
         <FormField
           control={form.control}
-          name='RetryModelOverrides'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('Per-model retry overrides')}</FormLabel>
-              <FormControl>
-                <JsonCodeEditor
-                  value={field.value}
-                  onChange={(value) => field.onChange(value)}
-                  name={field.name}
-                  onBlur={field.onBlur}
-                  textareaRef={field.ref}
-                  placeholder={`${t('Example:')}\n${retryModelOverridesExample}`}
-                  heightClassName='h-40 min-h-40 max-h-40'
-                />
-              </FormControl>
-              <FormDescription>
-                {t(
-                  'Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.'
-                )}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name='ParamRemovalList'
           render={({ field }) => (
             <FormItem>
@@ -220,7 +180,7 @@ export function RetrySection() {
               </FormControl>
               <FormDescription>
                 {t(
-                  'How long an automatically detected unsupported parameter stays removed for the same model, in seconds.'
+                  'How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.'
                 )}
               </FormDescription>
               <FormMessage />

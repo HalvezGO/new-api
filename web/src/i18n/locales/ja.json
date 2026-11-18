@@ -702,6 +702,7 @@
     "Client disconnected": "クライアントが切断されました",
     "Comma-separated top-level request fields stripped before calling upstream. Empty inherits nothing at the global level; model and channel lists take priority when set.": "上流呼び出し前に削除するトップレベルのリクエストフィールド（カンマ区切り）。グローバルで空の場合は未設定です。モデルまたはチャンネルのリストが設定されている場合はそちらが優先されます。",
     "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows the per-model override, then the global list.": "上流呼び出し前に削除するトップレベルのリクエストフィールド（カンマ区切り）。空の場合はモデル別上書き、次にグローバルリストを継承します。",
+    "Comma-separated top-level request fields stripped before this channel calls upstream. Empty follows this channel’s per-model override, then the global list.": "このチャンネルが上流を呼び出す前に削除するトップレベルのリクエストフィールド（カンマ区切り）。空の場合はこのチャンネルのモデル別上書き、次にグローバルリストを継承します。",
     "Configure ordinary OpenAI pricing": "通常の OpenAI 料金を設定",
     "Copy override": "上書きをコピー",
     "Could not fetch the plugin source from this browser. The host may block cross-origin requests or be unreachable.": "このブラウザからプラグインのソースを取得できませんでした。ホストがクロスオリジンリクエストを拒否しているか、到達できない可能性があります。",
@@ -3870,6 +3871,7 @@
     "Maximum quota amount awarded for check-in": "チェックインで付与される最大クォータ量",
     "Maximum retries": "最大再試行回数",
     "Maximum retries for a request when this channel fails. Empty follows the per-model override, then the global setting.": "このチャネルが失敗したときのリクエスト最大再試行回数。空欄の場合はモデル上書き、次にグローバル設定を継承します。",
+    "Maximum retries for a request when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "このチャンネルが失敗したときの 1 リクエストあたりの最大再試行回数。空の場合はこのチャンネルのモデル別上書き、次にグローバル設定を継承します。",
     "Maximum tokens including hidden reasoning tokens": "隠れ推論トークンを含む最大トークン数",
     "Maximum tokens per response": "1 回の応答あたりの最大トークン数",
     "Maximum tokens per user": "ユーザーあたりの最大トークン数",
@@ -3906,6 +3908,7 @@
     "Migration notes": "移行に関する注意事項",
     "Milliseconds to wait before the next retry when the previous failure matches the retry interval status codes. 0 means no wait.": "前回の失敗が再試行間隔ステータスコードに一致した場合に、次の再試行まで待機するミリ秒数。0 は待機なし。",
     "Milliseconds to wait before the next retry when this channel fails. Empty follows the per-model override, then the global setting.": "このチャネルが失敗したとき、次の再試行までの待機ミリ秒。空欄の場合はモデル上書き、次にグローバル設定を継承します。",
+    "Milliseconds to wait before the next retry when this channel fails. Empty follows this channel’s per-model override, then the global setting.": "このチャンネルが失敗したとき、次の再試行まで待つミリ秒数。空の場合はこのチャンネルのモデル別上書き、次にグローバル設定を継承します。",
     "min downtime": "分のダウンタイム",
     "Min Top-up": "最低チャージ額",
     "Min Top-up:": "最小チャージ額:",
@@ -3972,6 +3975,7 @@
     "Model ID is required": "モデル ID が必要です",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times and Retry Interval options.": "モデルキーはクライアントがリクエストしたモデル名と一致します。優先順位：モデル上書き > チャネル設定 > グローバルな再試行回数と再試行間隔。",
     "Model keys match the model name requested by the client. Model overrides take priority over channel settings, which take priority over the global Retry Times, Retry Interval, and Remove parameters options.": "モデルキーはクライアントが要求したモデル名に一致します。モデル別上書きはチャンネル設定より優先され、チャンネル設定はグローバルの Retry Times、Retry Interval、Remove parameters オプションより優先されます。",
+    "Model keys match this channel’s model names. These overrides apply only to this channel and take priority over its Retry Times, Retry Interval, and Remove parameters settings.": "モデルキーはこのチャンネルのモデル名に一致します。これらの上書きはこのチャンネルにのみ適用され、チャンネルの Retry Times、Retry Interval、Remove parameters 設定より優先されます。",
     "Model Limits": "モデル制限",
     "Model limits enabled": "モデル制限が有効",
     "Model List": "モデル一覧",
@@ -7907,6 +7911,7 @@
     "Zhipu V4": "Zhipu V 4",
     "Zoom": "ズーム",
     "By clicking sign in, you agree to our": "サインインをクリックすると、以下に同意したことになります：",
-    "By creating an account, you agree to our": "アカウントを作成すると、以下に同意したことになります："
+    "By creating an account, you agree to our": "アカウントを作成すると、以下に同意したことになります：",
+    "How long an automatically detected unsupported parameter stays removed for the same channel and model, in seconds.": "自動検出された未対応パラメータを同じチャンネルとモデルで削除し続ける時間（秒）。"
   }
 }

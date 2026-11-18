@@ -1,9 +1,3 @@
-import {
-  parseParamNameList,
-  serializeParamNameList,
-  validateParamNameList,
-} from '@/lib/param-removal'
-
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -22,6 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import {
+  parseParamNameList,
+  serializeParamNameList,
+  validateParamNameList,
+} from '@/lib/param-removal'
+
 import {
   MAX_CHANNEL_RETRY_INTERVAL,
   MAX_CHANNEL_RETRY_TIMES,
@@ -56,99 +56,6 @@ function parseOptionalInteger(value: string, max: number): OptionalInteger {
   const parsed = Number(trimmed)
   if (!Number.isInteger(parsed) || parsed > max) return { valid: false }
   return { valid: true, value: parsed }
-}
-
-function readOptionalInteger(value: unknown, max: number): number | undefined {
-  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined
-  if (value < 0 || value > max) return undefined
-  return value
-}
-
-export function parseRetryModelOverrides(
-  value: string | null | undefined
-): RetryModelOverridesMap {
-  const trimmed = (value ?? '').trim()
-  if (!trimmed) return {}
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(trimmed)
-  } catch {
-    return {}
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-
-  const overrides: RetryModelOverridesMap = {}
-  for (const [rawModel, rawOverride] of Object.entries(parsed)) {
-    const model = rawModel.trim()
-    if (
-      !model ||
-      !rawOverride ||
-      typeof rawOverride !== 'object' ||
-      Array.isArray(rawOverride)
-    ) {
-      continue
-    }
-    const source = rawOverride as Record<string, unknown>
-    const retryTimes = readOptionalInteger(
-      source.retry_times,
-      MAX_CHANNEL_RETRY_TIMES
-    )
-    const retryInterval = readOptionalInteger(
-      source.retry_interval,
-      MAX_CHANNEL_RETRY_INTERVAL
-    )
-    const rawRemoveParams = Array.isArray(source.remove_params)
-      ? source.remove_params.filter(
-          (item): item is string => typeof item === 'string'
-        )
-      : []
-    const removeParams = parseParamNameList(rawRemoveParams.join(','))
-    if (
-      retryTimes === undefined &&
-      retryInterval === undefined &&
-      removeParams.length === 0
-    ) {
-      continue
-    }
-
-    const override: RetryModelOverride = {}
-    if (retryTimes !== undefined) override.retry_times = retryTimes
-    if (retryInterval !== undefined) override.retry_interval = retryInterval
-    if (removeParams.length > 0) override.remove_params = removeParams
-    overrides[model] = override
-  }
-  return overrides
-}
-
-export function serializeRetryModelOverrides(
-  overrides: RetryModelOverridesMap
-): string {
-  const ordered: RetryModelOverridesMap = {}
-  for (const model of Object.keys(overrides).sort()) {
-    const override = overrides[model]
-    const normalized: RetryModelOverride = {}
-    if (override.retry_times !== undefined) {
-      normalized.retry_times = override.retry_times
-    }
-    if (override.retry_interval !== undefined) {
-      normalized.retry_interval = override.retry_interval
-    }
-    if (override.remove_params && override.remove_params.length > 0) {
-      normalized.remove_params = parseParamNameList(
-        override.remove_params.join(',')
-      )
-    }
-    if (
-      normalized.retry_times === undefined &&
-      normalized.retry_interval === undefined &&
-      (!normalized.remove_params || normalized.remove_params.length === 0)
-    ) {
-      continue
-    }
-    ordered[model] = normalized
-  }
-  return JSON.stringify(ordered)
 }
 
 export function buildRetryOverrideRows(

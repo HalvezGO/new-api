@@ -34,22 +34,34 @@ type ChannelSettings struct {
 	// (1-8). Zero/unset means 1. Ignored when HTTPProtocol is "http1".
 	HTTP2ConnectionShards int `json:"http2_connection_shards,omitempty"`
 	// RetryTimes overrides the global retry count when this channel fails.
-	// Nil inherits the per-model override, then the global option.
+	// Nil inherits this channel's per-model override, then the global option.
 	RetryTimes *int `json:"retry_times,omitempty"`
 	// RetryInterval overrides the global retry interval in milliseconds when
-	// this channel fails. Nil inherits the per-model override, then the global
-	// option.
+	// this channel fails. Nil inherits this channel's per-model override, then
+	// the global option.
 	RetryInterval *int `json:"retry_interval,omitempty"`
 	// RemoveParams lists top-level request body fields stripped before this
-	// channel's upstream request. Empty inherits the per-model override, then
-	// the global parameter removal list.
+	// channel's upstream request. Empty inherits this channel's per-model
+	// override, then the global parameter removal list.
 	RemoveParams []string `json:"remove_params,omitempty"`
+	// RetryModelOverrides overrides the retry policy per model for this
+	// channel only. Keys match the model name in the channel's Models list,
+	// without the channel model_prefix.
+	RetryModelOverrides map[string]RetryModelOverride `json:"retry_model_overrides,omitempty"`
 	// TLSInsecureSkipVerify accepts upstream certificates that fail
 	// verification, such as self-signed ones, for this channel only.
 	TLSInsecureSkipVerify bool `json:"tls_insecure_skip_verify,omitempty"`
 	// RequestPlugins lists the request plugin instances the channel binds,
 	// by instance id, in run order.
 	RequestPlugins []string `json:"request_plugins,omitempty"`
+}
+
+// RetryModelOverride overrides the retry policy of one model on one channel.
+// A nil field falls back to the channel setting, then the global option.
+type RetryModelOverride struct {
+	RetryTimes    *int     `json:"retry_times,omitempty"`
+	RetryInterval *int     `json:"retry_interval,omitempty"`
+	RemoveParams  []string `json:"remove_params,omitempty"`
 }
 
 // BindsTaskPlugin reports whether the channel is bound to the task plugin,
