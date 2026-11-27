@@ -401,6 +401,10 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 			Name:    c.GetString("channel_name"),
 			AutoBan: &autoBanInt,
 		}
+		// The first attempt reuses the channel selected by distribution, but
+		// its multi-key identity only exists in the context. Restore it so a
+		// first-attempt failure records its key index.
+		channel.ChannelInfo.IsMultiKey = common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
 		// The channel was selected before this relay info existed (middleware
 		// distribution or a task origin channel), so its stored settings are only
 		// available through the context. Retry policy resolution needs them.

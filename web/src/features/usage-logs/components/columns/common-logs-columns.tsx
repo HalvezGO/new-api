@@ -429,6 +429,11 @@ export function useCommonLogsColumns(
               other?.admin_info?.is_multi_key === true &&
               typeof multiKeyIndex === 'number' &&
               Number.isFinite(multiKeyIndex)
+            // The stored index is zero-based; key numbers are shown one-based
+            // everywhere else, including the retry history and key management.
+            const multiKeyLabel = showMultiKeyIndex
+              ? `#${multiKeyIndex + 1}`
+              : ''
 
             return (
               <TooltipProvider>
@@ -449,13 +454,13 @@ export function useCommonLogsColumns(
                       />
                       {showMultiKeyIndex && (
                         <StatusBadge
-                          label={String(multiKeyIndex)}
+                          label={multiKeyLabel}
                           size='sm'
                           showDot={false}
                           copyable={false}
                           variant='neutral'
                           className='h-5 min-w-5 justify-center rounded-full px-1 font-mono text-xs'
-                          aria-label={`${t('Key')} ${multiKeyIndex}`}
+                          aria-label={`${t('Key')} ${multiKeyLabel}`}
                         />
                       )}
                       {hasRetryChain && (
@@ -529,7 +534,7 @@ export function useCommonLogsColumns(
                       )}
                       {showMultiKeyIndex && (
                         <p className='text-muted-foreground text-xs'>
-                          {t('Key')}: {multiKeyIndex}
+                          {t('Key')}: {multiKeyLabel}
                         </p>
                       )}
                       {affinity && (

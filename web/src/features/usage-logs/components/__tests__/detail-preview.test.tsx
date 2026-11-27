@@ -96,6 +96,20 @@ function DetailPreview(props: {
   if (!cell) throw new Error('The log must have a content column')
   return flexRender(cell.column.columnDef.cell, cell.getContext())
 }
+
+function ChannelPreview(props: { other: LogOtherData; isAdmin: boolean }) {
+  const table = useReactTable({
+    data: [makeLog(props.other)],
+    columns: useCommonLogsColumns(props.isAdmin, false),
+    getCoreRowModel: getCoreRowModel(),
+  })
+  const cell = table
+    .getRowModel()
+    .rows[0].getAllCells()
+    .find((item) => item.column.id === 'channel')
+  if (!cell) throw new Error('The log must have a channel column')
+  return flexRender(cell.column.columnDef.cell, cell.getContext())
+}
 const plugin = {
   key: 'incho',
   name: 'Incho',
@@ -153,6 +167,36 @@ function renderPreview(other: LogOtherData, isAdmin = true, type?: number) {
   )
   return screen.getByRole('button', { name: /./ })
 }
+
+function renderChannelPreview(other: LogOtherData, isAdmin = true) {
+  useAuthStore.setState({
+    auth: {
+      ...useAuthStore.getState().auth,
+      user: {
+        id: 1,
+        username: 'tester',
+        role: isAdmin ? ROLE.ADMIN : ROLE.USER,
+      } satisfies AuthUser,
+    },
+  })
+  render(
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={client}>
+        <UsageLogsProvider>
+          <ChannelPreview other={other} isAdmin={isAdmin} />
+        </UsageLogsProvider>
+      </QueryClientProvider>
+    </I18nextProvider>
+  )
+}
+
+test('shows the multi-key index one-based in the log row', () => {
+  renderChannelPreview({
+    admin_info: { is_multi_key: true, multi_key_index: 0 },
+  })
+
+  expect(screen.getByLabelText('Key #1')).toBeVisible()
+})
 
 test('keeps log details open when the parent refreshes with unchanged data', async () => {
   const other = { model_price: 0.25 }

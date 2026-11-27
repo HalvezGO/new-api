@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
 
 	"github.com/gin-gonic/gin"
@@ -96,4 +97,22 @@ func TestProcessChannelErrorUsesSnapshotWithoutLeakingChannelMetadata(t *testing
 	for _, key := range []string{"channel_id", "channel_name", "channel_type"} {
 		assert.NotContains(t, userOther, key)
 	}
+}
+
+func TestGetChannelRestoresMultiKeyMetadataFromContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	ctx.Set("channel_id", 21)
+	ctx.Set("channel_type", 1)
+	ctx.Set("channel_name", "byok-sensenova")
+	ctx.Set("auto_ban", true)
+	common.SetContextKey(ctx, constant.ContextKeyChannelIsMultiKey, true)
+
+	channel, newAPIError := getChannel(ctx, &relaycommon.RelayInfo{}, nil)
+
+	require.Nil(t, newAPIError)
+	require.NotNil(t, channel)
+	assert.True(t, channel.ChannelInfo.IsMultiKey)
 }
