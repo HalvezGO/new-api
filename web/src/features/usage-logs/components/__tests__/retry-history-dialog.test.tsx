@@ -50,6 +50,8 @@ describe('usage log retry history dialog', () => {
       'Retried {{count}} attempts': 'Retried {{count}} attempts',
       'Only the first {{count}} attempts are kept.':
         'Only the first {{count}} attempts are kept.',
+      'Only failed attempts are listed. The log row shows the key used by the final attempt.':
+        'Only failed attempts are listed. The log row shows the key used by the final attempt.',
       'Status Code': 'Status Code',
       'Error code': 'Error code',
       Channel: 'Channel',
@@ -199,7 +201,12 @@ describe('usage log retry history dialog', () => {
     expect(region.className).toContain('flex-1')
     const scrollArea = region.querySelector('.overflow-auto')
     expect(scrollArea).not.toBeNull()
-    expect(scrollArea).toContainElement(dialog.getByRole('table'))
+    // The table must scroll inside the flex area that fills the dialog body,
+    // so the horizontal scrollbar stays above pagination instead of hugging
+    // the last row.
+    expect(scrollArea?.className).toContain('flex-1')
+    expect(scrollArea?.className).toContain('min-h-0')
+    expect(dialog.getByRole('table').parentElement).toBe(scrollArea)
     expect(region).not.toContainElement(dialog.getByRole('combobox'))
   })
 

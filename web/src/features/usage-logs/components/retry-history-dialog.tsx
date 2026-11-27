@@ -67,6 +67,9 @@ export function RetryHistoryDialog(props: RetryHistoryDialogProps) {
         open={open}
         onOpenChange={setOpen}
         title={t('Retry history')}
+        description={t(
+          'Only failed attempts are listed. The log row shows the key used by the final attempt.'
+        )}
         contentClassName='sm:max-w-4xl'
         contentHeight='min(65vh, 620px)'
         bodyClassName='flex h-full min-h-0 flex-col gap-3'
@@ -216,7 +219,11 @@ function RetryHistoryTable(props: {
           role: 'region',
           'aria-label': t('Retry history'),
         }}
-        tableContainerClassName='h-full overflow-auto'
+        tableContainerClassName='h-full min-h-0'
+        tableHeaderClassName='[background-color:var(--table-header)]'
+        splitHeaderScrollClassName='h-full'
+        bodyContainerClassName='[scrollbar-gutter:stable]'
+        splitHeader
         tableClassName='w-full table-auto'
         colgroup={
           <colgroup>
