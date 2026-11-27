@@ -29,6 +29,7 @@ import {
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks'
+import { formatTimestampToDate } from '@/lib/format'
 
 import type { RetryFailureEntry } from '../types'
 
@@ -67,8 +68,8 @@ export function RetryHistoryDialog(props: RetryHistoryDialogProps) {
         onOpenChange={setOpen}
         title={t('Retry history')}
         contentClassName='sm:max-w-4xl'
-        contentHeight='auto'
-        bodyClassName='space-y-3'
+        contentHeight='min(65vh, 620px)'
+        bodyClassName='flex h-full min-h-0 flex-col gap-3'
         footer={
           <Button variant='outline' onClick={() => setOpen(false)}>
             {t('Close')}
@@ -97,7 +98,7 @@ function RetryHistoryTable(props: {
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   const columns = useMemo<ColumnDef<RetryFailureEntry>[]>(() => {
-    const channelColumns: ColumnDef<RetryFailureEntry>[] = props.isAdmin
+    const adminColumns: ColumnDef<RetryFailureEntry>[] = props.isAdmin
       ? [
           {
             id: 'channel',
@@ -107,6 +108,20 @@ function RetryHistoryTable(props: {
               return channel ? (
                 <TruncatedCell tooltipContent={channel}>
                   {channel}
+                </TruncatedCell>
+              ) : (
+                <span className='text-muted-foreground'>-</span>
+              )
+            },
+          },
+          {
+            id: 'key',
+            header: t('API Key'),
+            cell: ({ row }) => {
+              const label = formatAttemptedKey(row.original)
+              return label ? (
+                <TruncatedCell tooltipContent={label}>
+                  <span className='font-mono text-xs'>{label}</span>
                 </TruncatedCell>
               ) : (
                 <span className='text-muted-foreground'>-</span>
@@ -126,7 +141,21 @@ function RetryHistoryTable(props: {
           </span>
         ),
       },
-      ...channelColumns,
+      {
+        id: 'attempted_at',
+        header: t('Time'),
+        cell: ({ row }) => {
+          const attemptedAt = row.original.attempted_at
+          return attemptedAt ? (
+            <span className='font-mono text-xs tabular-nums'>
+              {formatTimestampToDate(attemptedAt)}
+            </span>
+          ) : (
+            <span className='text-muted-foreground'>-</span>
+          )
+        },
+      },
+      ...adminColumns,
       {
         id: 'status_code',
         header: t('Status Code'),
@@ -179,20 +208,22 @@ function RetryHistoryTable(props: {
   })
 
   return (
-    <div className='space-y-3'>
+    <div className='flex min-h-0 flex-1 flex-col gap-3'>
       <DataTableView
         table={table}
-        containerClassName='rounded-md'
+        containerClassName='min-h-0 flex-1 rounded-md'
         containerProps={{
           role: 'region',
           'aria-label': t('Retry history'),
         }}
-        tableContainerClassName='max-h-[55vh] overflow-auto'
+        tableContainerClassName='h-full overflow-auto'
         tableClassName='w-full table-auto'
         colgroup={
           <colgroup>
             <col className='w-14' />
+            <col className='w-40' />
             {props.isAdmin ? <col className='w-48' /> : null}
+            {props.isAdmin ? <col className='w-44' /> : null}
             <col className='w-24' />
             <col className='w-40' />
             <col className='w-24' />
@@ -205,6 +236,16 @@ function RetryHistoryTable(props: {
       <DataTablePagination table={table} compact={isMobile} />
     </div>
   )
+}
+
+function formatAttemptedKey(failure: RetryFailureEntry): string {
+  const parts: string[] = []
+  if (failure.key_index !== undefined) {
+    parts.push(`#${failure.key_index + 1}`)
+  }
+  const masked = failure.key_masked?.trim()
+  if (masked) parts.push(masked)
+  return parts.join(' · ')
 }
 
 function formatChannel(failure: RetryFailureEntry): string {

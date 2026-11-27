@@ -211,10 +211,16 @@ export interface RetryFailureEntry {
   channel_id?: number
   /** Stripped from user-facing payloads (admin-only channel identity). */
   channel_name?: string
+  /** Zero-based multi-key index; stripped from user-facing payloads. */
+  key_index?: number
+  /** Masked key identity; stripped from user-facing payloads. */
+  key_masked?: string
   status_code: number
   error_code?: string
   reason: string
   waited_ms: number
+  /** Unix seconds when this attempt failed. */
+  attempted_at?: number
 }
 
 export interface LogOtherData {

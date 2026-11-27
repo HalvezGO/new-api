@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -195,6 +196,14 @@ func AppendRetryFailure(relayInfo *relaycommon.RelayInfo, channelError types.Cha
 		ChannelId:   channelError.ChannelId,
 		ChannelName: channelError.ChannelName,
 		WaitedMs:    relayInfo.LastRetryWaitMs,
+		AttemptedAt: time.Now().Unix(),
+	}
+	if channelError.IsMultiKey && relayInfo.ChannelMeta != nil {
+		keyIndex := relayInfo.ChannelMultiKeyIndex
+		record.KeyIndex = &keyIndex
+	}
+	if key := strings.TrimSpace(channelError.UsingKey); key != "" {
+		record.KeyMasked = model.MaskTokenKey(key)
 	}
 	if err != nil {
 		record.StatusCode = err.StatusCode

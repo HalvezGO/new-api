@@ -22,6 +22,7 @@ import i18next from 'i18next'
 import { beforeAll, describe, expect, test } from 'vitest'
 
 import { Dialog } from '@/components/dialog'
+import { formatTimestampToDate } from '@/lib/format'
 
 import type { RetryFailureEntry } from '../../types'
 import { RetryHistoryDialog } from '../retry-history-dialog'
@@ -32,10 +33,13 @@ const failures: RetryFailureEntry[] = Array.from(
     retry_index: index,
     channel_id: 12,
     channel_name: 'internal-channel',
+    key_index: 0,
+    key_masked: 'sk-1**********cdef',
     status_code: 429,
     error_code: 'rate_limit_exceeded',
     reason: `upstream rejected attempt ${index}`,
     waited_ms: 1500,
+    attempted_at: 1_700_000_000 + index,
   })
 )
 
@@ -49,6 +53,8 @@ describe('usage log retry history dialog', () => {
       'Status Code': 'Status Code',
       'Error code': 'Error code',
       Channel: 'Channel',
+      'API Key': 'API Key',
+      Time: 'Time',
       Waiting: 'Waiting',
       Reason: 'Reason',
       Close: 'Close',
@@ -165,6 +171,38 @@ describe('usage log retry history dialog', () => {
     ).toBeVisible()
   })
 
+  test('shows the attempted API key and attempt time to admins', async () => {
+    const user = userEvent.setup()
+    render(<RetryHistoryDialog failures={failures.slice(0, 1)} isAdmin />)
+
+    await user.click(screen.getByRole('button', { name: /Retried 1 attempts/ }))
+
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getByText('API Key')).toBeVisible()
+    expect(dialog.getByText('#1 · sk-1**********cdef')).toBeVisible()
+    expect(dialog.getByText('Time')).toBeVisible()
+    expect(
+      dialog.getByText(formatTimestampToDate(failures[0].attempted_at ?? 0))
+    ).toBeVisible()
+  })
+
+  test('keeps the table in its own scroll area so the horizontal scrollbar stays above pagination', async () => {
+    const user = userEvent.setup()
+    render(<RetryHistoryDialog failures={failures} isAdmin />)
+
+    await user.click(
+      screen.getByRole('button', { name: /Retried 12 attempts/ })
+    )
+
+    const dialog = within(await screen.findByRole('dialog'))
+    const region = dialog.getByRole('region', { name: 'Retry history' })
+    expect(region.className).toContain('flex-1')
+    const scrollArea = region.querySelector('.overflow-auto')
+    expect(scrollArea).not.toBeNull()
+    expect(scrollArea).toContainElement(dialog.getByRole('table'))
+    expect(region).not.toContainElement(dialog.getByRole('combobox'))
+  })
+
   test('hides channel identity from non-admins but keeps failure reasons', async () => {
     const user = userEvent.setup()
     render(<RetryHistoryDialog failures={failures} isAdmin={false} />)
@@ -175,6 +213,9 @@ describe('usage log retry history dialog', () => {
 
     const dialog = within(await screen.findByRole('dialog'))
     expect(dialog.queryByText(/internal-channel/)).toBeNull()
+    expect(dialog.queryByText('API Key')).toBeNull()
+    expect(dialog.queryByText(/sk-1\*+cdef/)).toBeNull()
+    expect(dialog.getByText('Time')).toBeVisible()
     expect(dialog.getByText('upstream rejected attempt 0')).toBeVisible()
   })
 

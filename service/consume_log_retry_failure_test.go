@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"testing"
+	"time"
 
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -24,7 +25,9 @@ func appendFailure(t *testing.T, relayInfo *relaycommon.RelayInfo, retryIndex in
 }
 
 func TestAppendRetryFailureRecordFields(t *testing.T) {
-	relayInfo := &relaycommon.RelayInfo{}
+	relayInfo := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{ChannelMultiKeyIndex: 3},
+	}
 	relayInfo.RetryIndex = 2
 	relayInfo.LastRetryWaitMs = 1500
 
@@ -33,9 +36,12 @@ func TestAppendRetryFailureRecordFields(t *testing.T) {
 		types.ErrorCodeBadResponseStatusCode,
 		503,
 	)
+	before := time.Now().Unix()
 	AppendRetryFailure(relayInfo, types.ChannelError{
 		ChannelId:   42,
 		ChannelName: "byok-sensenova",
+		IsMultiKey:  true,
+		UsingKey:    "sk-1234567890abcdef",
 	}, err)
 
 	require.Len(t, relayInfo.ConsumeLogRetryFailures, 1)
@@ -43,10 +49,30 @@ func TestAppendRetryFailureRecordFields(t *testing.T) {
 	assert.Equal(t, 2, record.RetryIndex)
 	assert.Equal(t, 42, record.ChannelId)
 	assert.Equal(t, "byok-sensenova", record.ChannelName)
+	require.NotNil(t, record.KeyIndex)
+	assert.Equal(t, 3, *record.KeyIndex)
+	assert.Equal(t, "sk-1**********cdef", record.KeyMasked)
 	assert.Equal(t, 503, record.StatusCode)
 	assert.NotEmpty(t, record.ErrorCode)
 	assert.Contains(t, record.Reason, "503")
 	assert.Equal(t, 1500, record.WaitedMs)
+	assert.GreaterOrEqual(t, record.AttemptedAt, before)
+}
+
+func TestAppendRetryFailureOmitsKeyIndexForSingleKeyChannel(t *testing.T) {
+	relayInfo := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{ChannelMultiKeyIndex: 4},
+	}
+	AppendRetryFailure(relayInfo, types.ChannelError{
+		ChannelId:  7,
+		IsMultiKey: false,
+		UsingKey:   "sk-single-secret",
+	}, types.NewErrorWithStatusCode(errors.New("upstream 429"), types.ErrorCodeBadResponseStatusCode, 429))
+
+	require.Len(t, relayInfo.ConsumeLogRetryFailures, 1)
+	record := relayInfo.ConsumeLogRetryFailures[0]
+	assert.Nil(t, record.KeyIndex)
+	assert.Equal(t, "sk-s**********cret", record.KeyMasked)
 }
 
 func TestAppendRetryFailureCapsAndTruncates(t *testing.T) {

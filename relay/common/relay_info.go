@@ -87,10 +87,16 @@ type RetryFailureRecord struct {
 	RetryIndex  int    `json:"retry_index"`
 	ChannelId   int    `json:"channel_id"`
 	ChannelName string `json:"channel_name"`
+	// KeyIndex is the zero-based key index of a multi-key channel. Nil for a
+	// single-key channel or when the failing attempt did not use a key.
+	KeyIndex *int `json:"key_index,omitempty"`
+	// KeyMasked identifies the key without exposing it; admin-only.
+	KeyMasked   string `json:"key_masked,omitempty"`
 	StatusCode  int    `json:"status_code"`
 	ErrorCode   string `json:"error_code"`
 	Reason      string `json:"reason"`
 	WaitedMs    int    `json:"waited_ms"`
+	AttemptedAt int64  `json:"attempted_at"`
 }
 
 type TokenCountMeta struct {

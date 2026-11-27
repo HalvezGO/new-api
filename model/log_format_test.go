@@ -47,8 +47,11 @@ func TestFormatUserLogsStripsRetryFailureChannelDetails(t *testing.T) {
 				"retry_index":  1,
 				"channel_id":   12,
 				"channel_name": "internal-channel-name",
+				"key_index":    2,
+				"key_masked":   "sk-1**********cdef",
 				"status_code":  429,
 				"reason":       "upstream 429",
+				"attempted_at": 1700000000,
 			},
 		},
 	})
@@ -65,12 +68,18 @@ func TestFormatUserLogsStripsRetryFailureChannelDetails(t *testing.T) {
 	require.True(t, ok)
 	_, hasName := entry["channel_name"]
 	_, hasId := entry["channel_id"]
+	_, hasKeyIndex := entry["key_index"]
+	_, hasKeyMasked := entry["key_masked"]
 	require.False(t, hasName, "retry attempt channel_name must be stripped for non-admin views")
 	require.False(t, hasId, "retry attempt channel_id must be stripped for non-admin views")
+	require.False(t, hasKeyIndex, "retry attempt key_index must be stripped for non-admin views")
+	require.False(t, hasKeyMasked, "retry attempt key_masked must be stripped for non-admin views")
 	// The reason for each failed attempt stays visible: it is the user's own
-	// request failure, and the API already returns that error to them.
+	// request failure, and the API already returns that error to them. The
+	// attempt time is also part of the user's own retry history.
 	require.Contains(t, entry, "reason")
 	require.Contains(t, entry, "status_code")
+	require.Contains(t, entry, "attempted_at")
 	require.Contains(t, parsed, "failure_reason")
 }
 

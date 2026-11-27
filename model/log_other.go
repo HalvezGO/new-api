@@ -201,10 +201,10 @@ func (o *LogOther) MarshalJSON() ([]byte, error) {
 	return common.Marshal(o.toMap())
 }
 
-// scrubRetryFailureChannels removes per-attempt channel identity from the
-// user-visible projection. The channel column is admin-only, so leaving the
-// ids/names inside retry_failures would leak it past that rule.
-func scrubRetryFailureChannels(raw json.RawMessage) (json.RawMessage, bool) {
+// scrubRetryFailureAdminFields removes per-attempt channel and key identity
+// from the user-visible projection. Those columns are admin-only, so leaving
+// them inside retry_failures would leak them past that rule.
+func scrubRetryFailureAdminFields(raw json.RawMessage) (json.RawMessage, bool) {
 	if len(raw) == 0 {
 		return nil, false
 	}
@@ -214,7 +214,7 @@ func scrubRetryFailureChannels(raw json.RawMessage) (json.RawMessage, bool) {
 	}
 	changed := false
 	for _, entry := range failures {
-		for _, key := range []string{"channel_id", "channel_name"} {
+		for _, key := range []string{"channel_id", "channel_name", "key_index", "key_masked"} {
 			if _, ok := entry[key]; ok {
 				delete(entry, key)
 				changed = true
@@ -287,7 +287,7 @@ func formatLogOtherJSON(value string, visibility logOtherVisibility) string {
 			}
 		}
 		if raw, exists := values["retry_failures"]; exists {
-			if scrubbed, ok := scrubRetryFailureChannels(raw); ok {
+			if scrubbed, ok := scrubRetryFailureAdminFields(raw); ok {
 				values["retry_failures"] = scrubbed
 				changed = true
 			}
