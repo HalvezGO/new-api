@@ -4588,7 +4588,7 @@
     "Only enabled parameters are sent with the request.": "有効なパラメータだけがリクエストに送信されます。",
     "Only enter the site origin, for example https://api.example.com. Do not include any path such as /api/user/epay/notify. Leave blank to use the server address.": "サイトのオリジンのみを入力してください。例: https://api.example.com。/api/user/epay/notify などのパスは含めないでください。空欄の場合はサーバーアドレスを使用します。",
     "Only exact model names are removed from enabled and disabled channels. Matching rules are not expanded, and channel records are retained.": "有効・無効を問わず、すべてのチャネルから完全に一致するモデル名のみを削除します。マッチングルールは展開せず、チャネル自体は保持します。",
-    "Only failed attempts are listed. The log row shows the key used by the final attempt.": "失敗した試行のみを表示します。ログ行には最後の試行で使用されたキーが表示されます。",
+    "Only failed attempts are listed.": "失敗した試行のみを表示します。",
     "Only Mine": "自分のみ",
     "Only one catch-all route is allowed for the same incoming path": "同じ入力パスではキャッチオールルートは1つだけ許可されます",
     "Only one OpenAI Models route is allowed": "OpenAI モデルルートは 1 つだけ設定できます",

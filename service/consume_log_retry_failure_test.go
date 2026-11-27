@@ -26,7 +26,10 @@ func appendFailure(t *testing.T, relayInfo *relaycommon.RelayInfo, retryIndex in
 
 func TestAppendRetryFailureRecordFields(t *testing.T) {
 	relayInfo := &relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{ChannelMultiKeyIndex: 3},
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelIsMultiKey:    true,
+			ChannelMultiKeyIndex: 3,
+		},
 	}
 	relayInfo.RetryIndex = 2
 	relayInfo.LastRetryWaitMs = 1500
@@ -37,10 +40,12 @@ func TestAppendRetryFailureRecordFields(t *testing.T) {
 		503,
 	)
 	before := time.Now().Unix()
+	// The first attempt reuses the distributed channel snapshot, which may not
+	// carry the multi-key flag; the relay info still knows the selected key.
 	AppendRetryFailure(relayInfo, types.ChannelError{
 		ChannelId:   42,
 		ChannelName: "byok-sensenova",
-		IsMultiKey:  true,
+		IsMultiKey:  false,
 		UsingKey:    "sk-1234567890abcdef",
 	}, err)
 

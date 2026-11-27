@@ -4588,7 +4588,7 @@
     "Only enabled parameters are sent with the request.": "只有启用的参数会随请求发送。",
     "Only enter the site origin, for example https://api.example.com. Do not include any path such as /api/user/epay/notify. Leave blank to use the server address.": "只填写站点根域名，例如 https://api.example.com。不要填写 /api/user/epay/notify 这类路径。留空则使用服务器地址。",
     "Only exact model names are removed from enabled and disabled channels. Matching rules are not expanded, and channel records are retained.": "仅从所有启用及停用的渠道中移除名称完全相同的模型，不扩展匹配规则，渠道本身会保留。",
-    "Only failed attempts are listed. The log row shows the key used by the final attempt.": "仅列出失败的尝试。日志行显示最后一次尝试使用的密钥。",
+    "Only failed attempts are listed.": "仅列出失败的尝试。",
     "Only Mine": "仅自己",
     "Only one catch-all route is allowed for the same incoming path": "同一入口路径只允许一个兜底路由",
     "Only one OpenAI Models route is allowed": "仅允许配置一条 OpenAI 模型路由",

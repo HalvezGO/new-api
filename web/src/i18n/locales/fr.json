@@ -4588,7 +4588,7 @@
     "Only enabled parameters are sent with the request.": "Seuls les paramètres activés sont envoyés avec la requête.",
     "Only enter the site origin, for example https://api.example.com. Do not include any path such as /api/user/epay/notify. Leave blank to use the server address.": "Saisissez uniquement l’origine du site, par exemple https://api.example.com. N’ajoutez aucun chemin comme /api/user/epay/notify. Laissez vide pour utiliser l’adresse du serveur.",
     "Only exact model names are removed from enabled and disabled channels. Matching rules are not expanded, and channel records are retained.": "Seuls les noms de modèle identiques sont retirés des canaux actifs et désactivés. Les règles de correspondance ne sont pas étendues et les canaux sont conservés.",
-    "Only failed attempts are listed. The log row shows the key used by the final attempt.": "Seules les tentatives échouées sont listées. La ligne de journal indique la clé utilisée lors de la dernière tentative.",
+    "Only failed attempts are listed.": "Seules les tentatives échouées sont listées.",
     "Only Mine": "Uniquement les miens",
     "Only one catch-all route is allowed for the same incoming path": "Un seul routage de secours est autorisé pour le même chemin d'entrée",
     "Only one OpenAI Models route is allowed": "Une seule route Modèles OpenAI est autorisée",

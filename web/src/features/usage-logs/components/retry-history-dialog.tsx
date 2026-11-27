@@ -67,9 +67,7 @@ export function RetryHistoryDialog(props: RetryHistoryDialogProps) {
         open={open}
         onOpenChange={setOpen}
         title={t('Retry history')}
-        description={t(
-          'Only failed attempts are listed. The log row shows the key used by the final attempt.'
-        )}
+        description={t('Only failed attempts are listed.')}
         contentClassName='sm:max-w-4xl'
         contentHeight='min(65vh, 620px)'
         bodyClassName='flex h-full min-h-0 flex-col gap-3'
@@ -248,7 +246,7 @@ function RetryHistoryTable(props: {
 function formatAttemptedKey(failure: RetryFailureEntry): string {
   const parts: string[] = []
   if (failure.key_index !== undefined) {
-    parts.push(`#${failure.key_index + 1}`)
+    parts.push(`#${failure.key_index}`)
   }
   const masked = failure.key_masked?.trim()
   if (masked) parts.push(masked)

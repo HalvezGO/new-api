@@ -198,7 +198,7 @@ func AppendRetryFailure(relayInfo *relaycommon.RelayInfo, channelError types.Cha
 		WaitedMs:    relayInfo.LastRetryWaitMs,
 		AttemptedAt: time.Now().Unix(),
 	}
-	if channelError.IsMultiKey && relayInfo.ChannelMeta != nil {
+	if relayInfo.ChannelMeta != nil && relayInfo.ChannelIsMultiKey {
 		keyIndex := relayInfo.ChannelMultiKeyIndex
 		record.KeyIndex = &keyIndex
 	}

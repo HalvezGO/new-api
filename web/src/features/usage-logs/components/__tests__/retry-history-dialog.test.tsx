@@ -50,8 +50,7 @@ describe('usage log retry history dialog', () => {
       'Retried {{count}} attempts': 'Retried {{count}} attempts',
       'Only the first {{count}} attempts are kept.':
         'Only the first {{count}} attempts are kept.',
-      'Only failed attempts are listed. The log row shows the key used by the final attempt.':
-        'Only failed attempts are listed. The log row shows the key used by the final attempt.',
+      'Only failed attempts are listed.': 'Only failed attempts are listed.',
       'Status Code': 'Status Code',
       'Error code': 'Error code',
       Channel: 'Channel',
@@ -181,7 +180,7 @@ describe('usage log retry history dialog', () => {
 
     const dialog = within(await screen.findByRole('dialog'))
     expect(dialog.getByText('API Key')).toBeVisible()
-    expect(dialog.getByText('#1 · sk-1**********cdef')).toBeVisible()
+    expect(dialog.getByText('#0 · sk-1**********cdef')).toBeVisible()
     expect(dialog.getByText('Time')).toBeVisible()
     expect(
       dialog.getByText(formatTimestampToDate(failures[0].attempted_at ?? 0))
